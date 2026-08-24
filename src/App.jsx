@@ -7,7 +7,7 @@ import {
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
-  consumirCreditoPdf, authErrorMessage, criarCheckout,
+  consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura,
 } from "./lib/vistoria";
 import { gerarPdfDeElemento } from "./lib/pdf";
 
@@ -150,6 +150,8 @@ export default function VistoriaApp() {
   const [pagamentoStatus, setPagamentoStatus] = useState(null);
   const [comprando, setComprando] = useState(null);
   const [pagamentoErro, setPagamentoErro] = useState(false);
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
 
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -381,6 +383,18 @@ export default function VistoriaApp() {
       } catch { setSaveError(true); return; }
     }
     setStep("relatorio");
+  };
+
+  const confirmarCancelamento = async () => {
+    setCancelando(true);
+    try {
+      await cancelarAssinatura();
+      setConta((c) => ({ ...c, assinatura_ativa: false }));
+      setConfirmandoCancelamento(false);
+    } catch {
+      setSaveError(true);
+    }
+    setCancelando(false);
   };
 
   const comprarPlano = async (planoId) => {
@@ -757,6 +771,35 @@ export default function VistoriaApp() {
                     {p.problemas.map((pr, pi) => <div key={pi} style={{ opacity: 0.75, marginTop: 2 }}>⚠️ {pr}</div>)}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {conta.assinatura_ativa && (
+              <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 20 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                  <Star size={13} color={AMBER} /> Assinatura Profissional ativa
+                </p>
+                <p style={{ margin: "2px 0 12px", fontSize: 12, opacity: 0.65 }}>Vistorias ilimitadas todo mês.</p>
+                {confirmandoCancelamento ? (
+                  <>
+                    <p style={{ fontSize: 12.5, color: RED, margin: "0 0 10px" }}>Tem certeza? Você perde o acesso ilimitado imediatamente.</p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={confirmarCancelamento} disabled={cancelando}
+                        style={{ flex: 1, padding: "8px 10px", background: RED, color: "#fff", border: "none", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: cancelando ? "default" : "pointer", opacity: cancelando ? 0.7 : 1 }}>
+                        {cancelando ? "Cancelando…" : "Sim, cancelar"}
+                      </button>
+                      <button onClick={() => setConfirmandoCancelamento(false)} disabled={cancelando}
+                        style={{ flex: 1, padding: "8px 10px", background: "transparent", border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, cursor: "pointer" }}>
+                        Voltar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmandoCancelamento(true)}
+                    style={{ background: "none", border: "none", color: RED, opacity: 0.75, fontSize: 12.5, cursor: "pointer", padding: 0 }}>
+                    Cancelar assinatura
+                  </button>
+                )}
               </div>
             )}
 

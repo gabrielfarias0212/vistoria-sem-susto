@@ -70,6 +70,14 @@ export async function criarCheckout(planoId) {
   return data.url;
 }
 
+export async function cancelarAssinatura() {
+  const { data, error } = await supabase.functions.invoke("mp-cancelar-assinatura", {
+    body: {},
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error("Não foi possível cancelar a assinatura.");
+}
+
 export async function fetchVistoriaAtual(userId) {
   const { data, error } = await supabase
     .from("vistorias")
