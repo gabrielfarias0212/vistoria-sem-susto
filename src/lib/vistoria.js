@@ -61,6 +61,15 @@ export async function fetchPlanos() {
   return data || [];
 }
 
+export async function criarCheckout(planoId) {
+  const { data, error } = await supabase.functions.invoke("mp-checkout", {
+    body: { plano_id: planoId },
+  });
+  if (error) throw error;
+  if (!data?.url) throw new Error("O Mercado Pago não retornou uma URL de pagamento.");
+  return data.url;
+}
+
 export async function fetchVistoriaAtual(userId) {
   const { data, error } = await supabase
     .from("vistorias")

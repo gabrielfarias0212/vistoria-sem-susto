@@ -7,7 +7,7 @@ import {
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
-  consumirCreditoPdf, authErrorMessage,
+  consumirCreditoPdf, authErrorMessage, criarCheckout,
 } from "./lib/vistoria";
 import { gerarPdfDeElemento } from "./lib/pdf";
 
@@ -147,6 +147,8 @@ export default function VistoriaApp() {
   const [pdfGerado, setPdfGerado] = useState(false);
   const [conta, setConta] = useState({ plano_id: "avulso", creditos_restantes: 0, assinatura_ativa: false });
   const [planos, setPlanos] = useState([]);
+  const [pagamentoStatus, setPagamentoStatus] = useState(null);
+  const [comprando, setComprando] = useState(null);
 
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -226,6 +228,15 @@ export default function VistoriaApp() {
         setNome(session.user.user_metadata?.nome || "");
         setEmail(session.user.email || "");
         await afterAuth(session.user);
+
+        const params = new URLSearchParams(window.location.search);
+        const pagamento = params.get("pagamento");
+        if (pagamento) {
+          window.history.replaceState({}, "", window.location.pathname);
+          setPagamentoStatus(pagamento);
+          try { setConta(await getConta(session.user.id)); } catch { /* mostra o status mesmo assim */ }
+          setStep("painel");
+        }
       } else {
         setStep("login");
       }
@@ -368,6 +379,17 @@ export default function VistoriaApp() {
       } catch { setSaveError(true); return; }
     }
     setStep("relatorio");
+  };
+
+  const comprarPlano = async (planoId) => {
+    setComprando(planoId);
+    try {
+      const url = await criarCheckout(planoId);
+      window.location.href = url;
+    } catch {
+      setSaveError(true);
+      setComprando(null);
+    }
   };
 
   const baixarPdf = async () => {
@@ -692,6 +714,20 @@ export default function VistoriaApp() {
               <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.6 }}>concluída em {concluidoEm}</p>
             </div>
 
+            {pagamentoStatus && (
+              <p style={{
+                background: pagamentoStatus === "sucesso" ? "#EAF3EC" : pagamentoStatus === "pendente" ? "#FBF3E3" : "#FBE7E7",
+                color: pagamentoStatus === "sucesso" ? GREEN : pagamentoStatus === "pendente" ? AMBER : RED,
+                fontSize: 13, padding: "10px 14px", borderRadius: 4, marginBottom: 18, textAlign: "center", lineHeight: 1.4,
+              }}>
+                {pagamentoStatus === "sucesso" && (conta.assinatura_ativa || conta.creditos_restantes > 0
+                  ? "Pagamento confirmado — seu crédito já está liberado!"
+                  : "Pagamento recebido — confirmando com o Mercado Pago, pode levar alguns segundos. Se o botão de PDF continuar bloqueado, atualize a página em instantes.")}
+                {pagamentoStatus === "pendente" && "Pagamento pendente (ex: boleto) — assim que for compensado, o crédito é liberado automaticamente."}
+                {pagamentoStatus === "falha" && "O pagamento não foi concluído. Pode tentar de novo quando quiser."}
+              </p>
+            )}
+
             <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
               <div style={{ flex: 1, background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "14px", textAlign: "center" }}>
                 <p style={{ margin: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 24, fontWeight: 500, color: pct === 100 ? GREEN : AMBER }}>{pct}%</p>
@@ -750,27 +786,34 @@ export default function VistoriaApp() {
               Você já conferiu o imóvel todo — falta só liberar o relatório em PDF pra levar como prova.
             </p>
 
+            {saveError && (
+              <p style={{ background: "#FBE7E7", color: RED, fontSize: 12.5, padding: "8px 12px", borderRadius: 4, marginBottom: 14, textAlign: "center" }}>
+                Não consegui iniciar o pagamento agora. Tente de novo em instantes.
+              </p>
+            )}
+
             {planos.map((p) => (
-              <div key={p.id} style={{ border: `1.5px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14.5, display: "flex", alignItems: "center", gap: 5 }}>
-                    {p.id === "profissional" && <Star size={13} color={AMBER} />} {p.nome}
+              <div key={p.id} style={{ border: `1.5px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14.5, display: "flex", alignItems: "center", gap: 5 }}>
+                      {p.id === "profissional" && <Star size={13} color={AMBER} />} {p.nome}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.65 }}>{p.descricao}</p>
+                  </div>
+                  <p style={{ margin: 0, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, whiteSpace: "nowrap" }}>
+                    {formatarPreco(p.preco_centavos)}{p.recorrente ? "/mês" : ""}
                   </p>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.65 }}>{p.descricao}</p>
                 </div>
-                <p style={{ margin: 0, fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600, fontSize: 16, whiteSpace: "nowrap" }}>
-                  {formatarPreco(p.preco_centavos)}{p.recorrente ? "/mês" : ""}
-                </p>
+                <button onClick={() => comprarPlano(p.id)} disabled={comprando === p.id}
+                  style={{ width: "100%", padding: "10px 14px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 13.5, cursor: comprando === p.id ? "default" : "pointer", opacity: comprando === p.id ? 0.7 : 1 }}>
+                  {comprando === p.id ? "Abrindo pagamento…" : p.recorrente ? "Assinar" : "Pagar agora"}
+                </button>
               </div>
             ))}
 
-            <p style={{ fontSize: 12.5, opacity: 0.7, textAlign: "center", margin: "18px 0 20px", lineHeight: 1.5 }}>
-              Para liberar seu crédito, entre em contato informando o e-mail da sua conta ({email}):
-              <br />
-              <a href={`mailto:gabrielfariasfotografias@gmail.com?subject=${encodeURIComponent("Liberar crédito Vistoria Sem Susto")}&body=${encodeURIComponent(`Meu e-mail de cadastro: ${email}`)}`}
-                style={{ color: AMBER, fontWeight: 600 }}>
-                gabrielfariasfotografias@gmail.com
-              </a>
+            <p style={{ fontSize: 11.5, opacity: 0.55, textAlign: "center", margin: "16px 0 20px", lineHeight: 1.4 }}>
+              Pagamento processado pelo Mercado Pago (Pix, cartão ou boleto). Seu crédito é liberado automaticamente assim que a compra é confirmada.
             </p>
 
             <button onClick={() => setStep("painel")}
