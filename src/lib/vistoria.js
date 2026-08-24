@@ -35,6 +35,23 @@ export async function signOut() {
   return supabase.auth.signOut();
 }
 
+export async function enviarResetSenha(email) {
+  return supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/app`,
+  });
+}
+
+export async function atualizarSenha(novaSenha) {
+  return supabase.auth.updateUser({ password: novaSenha });
+}
+
+export function onPasswordRecovery(callback) {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") callback(session);
+  });
+  return () => data.subscription.unsubscribe();
+}
+
 export async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;

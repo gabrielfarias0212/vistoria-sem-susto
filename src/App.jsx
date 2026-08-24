@@ -8,6 +8,7 @@ import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
   consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura, gerarParecerIA,
+  enviarResetSenha, atualizarSenha, onPasswordRecovery,
 } from "./lib/vistoria";
 import { gerarPdfDeElemento } from "./lib/pdf";
 
@@ -154,6 +155,14 @@ export default function VistoriaApp() {
   const [cancelando, setCancelando] = useState(false);
   const [parecerIA, setParecerIA] = useState("");
   const [gerandoParecer, setGerandoParecer] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetEnviado, setResetEnviado] = useState(false);
+  const [resetErro, setResetErro] = useState("");
+  const [enviandoReset, setEnviandoReset] = useState(false);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState("");
+  const [novaSenhaErro, setNovaSenhaErro] = useState("");
+  const [salvandoNovaSenha, setSalvandoNovaSenha] = useState(false);
 
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -249,6 +258,13 @@ export default function VistoriaApp() {
     })();
   }, [afterAuth]);
 
+  useEffect(() => {
+    const unsubscribe = onPasswordRecovery(() => {
+      setStep("nova-senha");
+    });
+    return unsubscribe;
+  }, []);
+
   const criarConta = async () => {
     setAuthErro(""); setConfirmacaoEmail(false);
     if (!nome.trim() || !email.trim() || senha.length < 6) { setAuthErro("Preencha nome, e-mail e uma senha com pelo menos 6 caracteres."); return; }
@@ -279,6 +295,28 @@ export default function VistoriaApp() {
     setSenha(""); setConfirmSenha(""); setAuthErro(""); setConfirmacaoEmail(false);
     setModo("entrar"); setPerfilPronto(false); setConcluidoEm("");
     setStep("login");
+  };
+
+  const enviarLinkReset = async () => {
+    setResetErro(""); setResetEnviado(false);
+    if (!resetEmail.trim()) { setResetErro("Digite seu e-mail."); return; }
+    setEnviandoReset(true);
+    const { error } = await enviarResetSenha(resetEmail.trim());
+    setEnviandoReset(false);
+    if (error) { setResetErro(authErrorMessage(error)); return; }
+    setResetEnviado(true);
+  };
+
+  const salvarNovaSenha = async () => {
+    setNovaSenhaErro("");
+    if (novaSenha.length < 6) { setNovaSenhaErro("A senha precisa ter pelo menos 6 caracteres."); return; }
+    if (novaSenha !== confirmarNovaSenha) { setNovaSenhaErro("As senhas não coincidem."); return; }
+    setSalvandoNovaSenha(true);
+    const { data, error } = await atualizarSenha(novaSenha);
+    setSalvandoNovaSenha(false);
+    if (error) { setNovaSenhaErro(authErrorMessage(error)); return; }
+    setNovaSenha(""); setConfirmarNovaSenha("");
+    await afterAuth(data.user);
   };
 
   const toggleItem = async (key) => {
@@ -471,7 +509,7 @@ export default function VistoriaApp() {
             <ClipboardCheck size={22} color={AMBER} />
             <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 19, letterSpacing: 0.2 }}>Vistoria Sem Susto</span>
           </div>
-          {step !== "login" && step !== "loading" && (
+          {step !== "login" && step !== "loading" && step !== "esqueci" && (
             <button onClick={sair} style={{ background: "none", border: "none", color: PAPER, opacity: 0.7, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
               <LogOut size={15} /> sair
             </button>
@@ -557,6 +595,83 @@ export default function VistoriaApp() {
                 {modo === "criar" ? "Entrar" : "Criar agora"}
               </button>
             </p>
+
+            {modo === "entrar" && (
+              <p style={{ textAlign: "center", fontSize: 12.5, marginTop: 10 }}>
+                <button onClick={() => { setResetEmail(email); setResetErro(""); setResetEnviado(false); setStep("esqueci"); }}
+                  style={{ background: "none", border: "none", color: INK, opacity: 0.55, cursor: "pointer", padding: 0, fontSize: 12.5 }}>
+                  Esqueci minha senha
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
+        {step === "esqueci" && (
+          <div style={{ position: "relative", background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "36px 24px 28px", boxShadow: "0 8px 24px rgba(30,42,50,0.08)" }}>
+            <div className="clip" style={{ left: "50%", transform: "translateX(-50%)" }} />
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, margin: "0 0 6px" }}>Esqueci minha senha</h1>
+            <p style={{ opacity: 0.75, fontSize: 14, margin: "0 0 20px", lineHeight: 1.5 }}>
+              Digite o e-mail da sua conta — mandamos um link pra você criar uma senha nova.
+            </p>
+
+            {resetEnviado ? (
+              <p style={{ background: "#EAF3EC", color: GREEN, fontSize: 12.5, padding: "10px 12px", borderRadius: 4, margin: "0 0 18px", textAlign: "center", lineHeight: 1.4 }}>
+                Link enviado! Confira seu e-mail (e a caixa de spam) e clique nele pra continuar.
+              </p>
+            ) : (
+              <>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>E-mail</label>
+                <div style={{ position: "relative", marginBottom: 14 }}>
+                  <Mail size={15} style={{ position: "absolute", left: 12, top: 12, opacity: 0.5 }} />
+                  <input className="field" type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="voce@email.com"
+                    style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 34px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+                </div>
+
+                {resetErro && <p style={{ color: RED, fontSize: 12.5, margin: "-8px 0 14px" }}>{resetErro}</p>}
+
+                <button onClick={enviarLinkReset} disabled={enviandoReset}
+                  style={{ width: "100%", padding: "12px 16px", background: INK, color: PAPER, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: enviandoReset ? "default" : "pointer", opacity: enviandoReset ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  {enviandoReset ? "Enviando…" : "Enviar link"}
+                </button>
+              </>
+            )}
+
+            <button onClick={() => { setStep("login"); setModo("entrar"); }}
+              style={{ width: "100%", padding: "10px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontSize: 13, cursor: "pointer", marginTop: 14 }}>
+              Voltar
+            </button>
+          </div>
+        )}
+
+        {step === "nova-senha" && (
+          <div style={{ position: "relative", background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "36px 24px 28px", boxShadow: "0 8px 24px rgba(30,42,50,0.08)" }}>
+            <div className="clip" style={{ left: "50%", transform: "translateX(-50%)" }} />
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, margin: "0 0 6px" }}>Criar nova senha</h1>
+            <p style={{ opacity: 0.75, fontSize: 14, margin: "0 0 20px", lineHeight: 1.5 }}>
+              Escolha uma senha nova pra sua conta.
+            </p>
+
+            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Nova senha</label>
+            <div style={{ position: "relative", marginBottom: 14 }}>
+              <Lock size={15} style={{ position: "absolute", left: 12, top: 12, opacity: 0.5 }} />
+              <input className="field" type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} placeholder="mínimo 6 caracteres"
+                style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 34px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+            </div>
+
+            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Confirmar nova senha</label>
+            <div style={{ position: "relative", marginBottom: 20 }}>
+              <Lock size={15} style={{ position: "absolute", left: 12, top: 12, opacity: 0.5 }} />
+              <input className="field" type="password" value={confirmarNovaSenha} onChange={(e) => setConfirmarNovaSenha(e.target.value)} placeholder="repita a senha"
+                style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 34px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+            </div>
+
+            {novaSenhaErro && <p style={{ color: RED, fontSize: 12.5, margin: "-8px 0 14px" }}>{novaSenhaErro}</p>}
+
+            <button onClick={salvarNovaSenha} disabled={salvandoNovaSenha}
+              style={{ width: "100%", padding: "12px 16px", background: INK, color: PAPER, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: salvandoNovaSenha ? "default" : "pointer", opacity: salvandoNovaSenha ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              {salvandoNovaSenha ? "Salvando…" : "Salvar nova senha"}
+            </button>
           </div>
         )}
 
