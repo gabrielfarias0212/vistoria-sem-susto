@@ -149,6 +149,7 @@ export default function VistoriaApp() {
   const [planos, setPlanos] = useState([]);
   const [pagamentoStatus, setPagamentoStatus] = useState(null);
   const [comprando, setComprando] = useState(null);
+  const [pagamentoErro, setPagamentoErro] = useState(false);
 
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -367,6 +368,7 @@ export default function VistoriaApp() {
   const abrirRelatorio = async () => {
     const temCredito = pdfGerado || conta.assinatura_ativa || conta.creditos_restantes > 0;
     if (!temCredito) {
+      setPagamentoErro(false);
       try { setPlanos(await fetchPlanos()); } catch { /* lista fica vazia, texto genérico ainda aparece */ }
       setStep("paywall");
       return;
@@ -383,11 +385,12 @@ export default function VistoriaApp() {
 
   const comprarPlano = async (planoId) => {
     setComprando(planoId);
+    setPagamentoErro(false);
     try {
       const url = await criarCheckout(planoId);
       window.location.href = url;
     } catch {
-      setSaveError(true);
+      setPagamentoErro(true);
       setComprando(null);
     }
   };
@@ -786,7 +789,7 @@ export default function VistoriaApp() {
               Você já conferiu o imóvel todo — falta só liberar o relatório em PDF pra levar como prova.
             </p>
 
-            {saveError && (
+            {pagamentoErro && (
               <p style={{ background: "#FBE7E7", color: RED, fontSize: 12.5, padding: "8px 12px", borderRadius: 4, marginBottom: 14, textAlign: "center" }}>
                 Não consegui iniciar o pagamento agora. Tente de novo em instantes.
               </p>
