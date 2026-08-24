@@ -7,7 +7,7 @@ import {
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
-  consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura,
+  consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura, gerarParecerIA,
 } from "./lib/vistoria";
 import { gerarPdfDeElemento } from "./lib/pdf";
 
@@ -152,6 +152,8 @@ export default function VistoriaApp() {
   const [pagamentoErro, setPagamentoErro] = useState(false);
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
   const [cancelando, setCancelando] = useState(false);
+  const [parecerIA, setParecerIA] = useState("");
+  const [gerandoParecer, setGerandoParecer] = useState(false);
 
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -203,6 +205,7 @@ export default function VistoriaApp() {
       setFinalidade(vistoria.finalidade || "aluguel");
       setConcluidoEm(vistoria.concluida_em ? new Date(vistoria.concluida_em).toLocaleDateString("pt-BR") : "");
       setPdfGerado(!!vistoria.pdf_gerado);
+      setParecerIA(vistoria.parecer_ia || "");
 
       const def = buildChecklist({
         tipoImovel: vistoria.tipo_imovel, mobiliado: vistoria.mobiliado,
@@ -363,7 +366,7 @@ export default function VistoriaApp() {
     setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
     setTipoImovel("apartamento"); setMobiliado("nao");
     setQuartos(2); setBanheiros(1); setConcluidoEm(""); setPerfilPronto(false); setPdfGerado(false);
-    setVistoriaId(null);
+    setVistoriaId(null); setParecerIA("");
     setStep("perguntas");
   };
 
@@ -381,6 +384,13 @@ export default function VistoriaApp() {
         setPdfGerado(true);
         setConta((c) => (c.assinatura_ativa ? c : { ...c, creditos_restantes: c.creditos_restantes - 1 }));
       } catch { setSaveError(true); return; }
+    }
+    if (!parecerIA) {
+      setGerandoParecer(true);
+      try {
+        setParecerIA(await gerarParecerIA(vistoriaId));
+      } catch { /* relatório segue sem o parecer da IA, não é bloqueante */ }
+      setGerandoParecer(false);
     }
     setStep("relatorio");
   };
@@ -809,9 +819,9 @@ export default function VistoriaApp() {
               </p>
             )}
 
-            <button onClick={abrirRelatorio}
-              style={{ width: "100%", padding: "13px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-              <FileText size={17} /> Ver relatório completo (PDF)
+            <button onClick={abrirRelatorio} disabled={gerandoParecer}
+              style={{ width: "100%", padding: "13px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: gerandoParecer ? "default" : "pointer", opacity: gerandoParecer ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+              <FileText size={17} /> {gerandoParecer ? "Preparando parecer da IA…" : "Ver relatório completo (PDF)"}
             </button>
             <button onClick={() => setStep("checklist")}
               style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
@@ -896,6 +906,13 @@ export default function VistoriaApp() {
                   <tr><td style={{ padding: "3px 0", opacity: 0.6 }}>Resultado</td><td>{totalChecked}/{totalItens} itens conferidos ({pct}%) · {totalProblemas} problema(s) identificado(s)</td></tr>
                 </tbody>
               </table>
+
+              {parecerIA && (
+                <div style={{ marginBottom: 22, breakInside: "avoid" }}>
+                  <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 14, fontWeight: 700, margin: "0 0 6px", borderBottom: "1px solid #ccc", paddingBottom: 3 }}>Parecer da vistoria</h3>
+                  <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: 0 }}>{parecerIA}</p>
+                </div>
+              )}
 
               {checklist.map((cat, ci) => (
                 <div key={ci} style={{ marginBottom: 16, breakInside: "avoid" }}>

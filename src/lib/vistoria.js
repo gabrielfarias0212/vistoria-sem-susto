@@ -78,6 +78,15 @@ export async function cancelarAssinatura() {
   if (!data?.ok) throw new Error("Não foi possível cancelar a assinatura.");
 }
 
+export async function gerarParecerIA(vistoriaId) {
+  const { data, error } = await supabase.functions.invoke("gerar-parecer-ia", {
+    body: { vistoria_id: vistoriaId },
+  });
+  if (error) throw error;
+  if (!data?.parecer) throw new Error("A IA não retornou um parecer.");
+  return data.parecer;
+}
+
 export async function fetchVistoriaAtual(userId) {
   const { data, error } = await supabase
     .from("vistorias")
