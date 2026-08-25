@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
   CheckCircle2, PlusCircle, LayoutDashboard, FileText, ArrowLeft, Printer, AlertTriangle,
-  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2, Settings, Wrench,
+  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2, Settings, Wrench, Search,
 } from "lucide-react";
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
@@ -179,6 +179,7 @@ export default function VistoriaApp() {
   const [listaVistorias, setListaVistorias] = useState([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
   const [confirmandoExclusaoId, setConfirmandoExclusaoId] = useState(null);
+  const [buscaVistoria, setBuscaVistoria] = useState("");
   const [excluindo, setExcluindo] = useState(false);
   const [excluirErro, setExcluirErro] = useState("");
   const [resetEmail, setResetEmail] = useState("");
@@ -1205,6 +1206,20 @@ export default function VistoriaApp() {
               <PlusCircle size={17} /> Nova vistoria
             </button>
 
+            {listaVistorias.length > 1 && (
+              <div style={{ position: "relative", marginBottom: 16 }}>
+                <Search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.5 }} />
+                <input className="field" value={buscaVistoria} onChange={(e) => setBuscaVistoria(e.target.value)} placeholder="Buscar por nome do imóvel ou cliente"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px 10px 36px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14 }} />
+                {buscaVistoria && (
+                  <button onClick={() => setBuscaVistoria("")} aria-label="Limpar busca"
+                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", opacity: 0.5, padding: 2, display: "flex" }}>
+                    <XIcon size={15} />
+                  </button>
+                )}
+              </div>
+            )}
+
             {excluirErro && (
               <p style={{ background: "#FBE7E7", color: RED, fontSize: 12.5, padding: "8px 12px", borderRadius: 4, marginBottom: 14, textAlign: "center" }}>
                 {excluirErro}
@@ -1219,7 +1234,16 @@ export default function VistoriaApp() {
 
             {(() => {
               const idsComSaida = new Set(listaVistorias.filter((v) => v.vistoria_origem_id).map((v) => v.vistoria_origem_id));
-              return listaVistorias.map((v) => {
+              const termo = buscaVistoria.trim().toLowerCase();
+              const vistoriasFiltradas = termo
+                ? listaVistorias.filter((v) => (v.apelido || "").toLowerCase().includes(termo) || (v.nome || "").toLowerCase().includes(termo))
+                : listaVistorias;
+
+              if (!carregandoLista && listaVistorias.length > 0 && vistoriasFiltradas.length === 0) {
+                return <p style={{ fontSize: 13.5, opacity: 0.6, textAlign: "center", margin: "20px 0" }}>Nenhuma vistoria encontrada pra "{buscaVistoria}".</p>;
+              }
+
+              return vistoriasFiltradas.map((v) => {
                 const ehSaida = !!v.vistoria_origem_id;
                 const podeCriarSaida = v.finalidade === "aluguel" && !ehSaida && v.concluida_em && !idsComSaida.has(v.id);
                 const confirmando = confirmandoExclusaoId === v.id;
