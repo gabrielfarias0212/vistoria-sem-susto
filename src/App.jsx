@@ -87,8 +87,24 @@ function buildChecklist(p) {
         { t: "Portão e fechadura", d: "Teste abertura manual e automática (se houver motor)." },
         { t: "Muros e piso externo", d: "Rachaduras em muro externo podem indicar problema estrutural — fotografe de longe e de perto." },
         { t: "Torneira externa", d: "Verifique vazamento e pressão." },
+        { t: "Pintura externa", d: "Descascados, mofo ou manchas na fachada — fotografe pra não ter dúvida na devolução." },
+        { t: "Calçada", d: "Rachaduras, desníveis ou pisos soltos na calçada em frente ao imóvel." },
       ],
     });
+  }
+
+  if (p.temVaranda) {
+    const nVarandas = Math.max(1, Number(p.varandas) || 1);
+    for (let i = 1; i <= nVarandas; i++) {
+      cats.push({
+        nome: `Varanda ${nVarandas > 1 ? i : ""}`.trim(),
+        itens: [
+          { t: "Piso e parede", d: "Rachaduras, infiltração ou manchas de umidade — comum em varandas descobertas." },
+          { t: "Guarda-corpo / grade", d: "Verifique ferrugem e se está bem firme, sem folga." },
+          { t: "Portas e janelas", d: "Teste vedação e deslizamento, se for de correr." },
+        ],
+      });
+    }
   }
 
   if (p.mobiliado === "sim") {
@@ -192,6 +208,8 @@ export default function VistoriaApp() {
   const [mobiliado, setMobiliado] = useState("nao");
   const [quartos, setQuartos] = useState(2);
   const [banheiros, setBanheiros] = useState(1);
+  const [temVaranda, setTemVaranda] = useState(false);
+  const [varandas, setVarandas] = useState(1);
   const [finalidade, setFinalidade] = useState("aluguel");
   const [checked, setChecked] = useState({});
   const [problemas, setProblemas] = useState({});
@@ -233,6 +251,8 @@ export default function VistoriaApp() {
     setMobiliado(vistoria.mobiliado || "nao");
     setQuartos(vistoria.quartos || 2);
     setBanheiros(vistoria.banheiros || 1);
+    setTemVaranda(!!vistoria.tem_varanda);
+    setVarandas(vistoria.varandas || 1);
     setFinalidade(vistoria.finalidade || "aluguel");
     setConcluidoEm(vistoria.concluida_em ? new Date(vistoria.concluida_em).toLocaleDateString("pt-BR") : "");
     setPdfGerado(!!vistoria.pdf_gerado);
@@ -251,6 +271,7 @@ export default function VistoriaApp() {
     const def = buildChecklist({
       tipoImovel: vistoria.tipo_imovel, mobiliado: vistoria.mobiliado,
       quartos: vistoria.quartos, banheiros: vistoria.banheiros,
+      temVaranda: vistoria.tem_varanda, varandas: vistoria.varandas,
     });
     try {
       const st = await fetchChecklistState(vistoria.id, def);
@@ -482,7 +503,7 @@ export default function VistoriaApp() {
     try {
       const row = await salvarVistoria(vistoriaId, userId, {
         nome, whatsapp, apelido, cidade, rua, numero, bairro, cep, uf, areaM2, totalComodos, nomeLocador, nomeResponsavelEntrega,
-        tipoImovel, mobiliado, quartos, banheiros, finalidade, concluidaEm: agora.toISOString(),
+        tipoImovel, mobiliado, quartos, banheiros, temVaranda, varandas, finalidade, concluidaEm: agora.toISOString(),
       });
       setVistoriaId(row.id);
       setConcluidoEm(agora.toLocaleDateString("pt-BR"));
@@ -493,7 +514,7 @@ export default function VistoriaApp() {
   const reiniciar = () => {
     setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
     setTipoImovel("apartamento"); setMobiliado("nao");
-    setQuartos(2); setBanheiros(1); setConcluidoEm(""); setPerfilPronto(false); setPdfGerado(false);
+    setQuartos(2); setBanheiros(1); setTemVaranda(false); setVarandas(1); setConcluidoEm(""); setPerfilPronto(false); setPdfGerado(false);
     setVistoriaId(null); setParecerIA(""); setApelido(""); setCidade(""); setApelidoErro("");
     setRua(""); setNumero(""); setBairro(""); setCep(""); setUf(""); setAreaM2(""); setTotalComodos("");
     setNomeLocador(""); setNomeResponsavelEntrega("");
@@ -505,7 +526,7 @@ export default function VistoriaApp() {
     const origem = origemVistoria || {
       id: vistoriaId, nome, whatsapp, apelido, cidade, rua, numero, bairro, cep, uf,
       area_m2: areaM2, total_comodos: totalComodos, nome_locador: nomeLocador, nome_responsavel_entrega: nomeResponsavelEntrega,
-      tipo_imovel: tipoImovel, mobiliado, quartos, banheiros, finalidade,
+      tipo_imovel: tipoImovel, mobiliado, quartos, banheiros, tem_varanda: temVaranda, varandas, finalidade,
     };
     try {
       const row = await salvarVistoria(null, userId, {
@@ -514,6 +535,7 @@ export default function VistoriaApp() {
         areaM2: origem.area_m2, totalComodos: origem.total_comodos,
         nomeLocador: origem.nome_locador, nomeResponsavelEntrega: origem.nome_responsavel_entrega,
         tipoImovel: origem.tipo_imovel, mobiliado: origem.mobiliado, quartos: origem.quartos, banheiros: origem.banheiros,
+        temVaranda: origem.tem_varanda, varandas: origem.varandas,
         finalidade: origem.finalidade, vistoriaOrigemId: origem.id,
       });
       setNome(origem.nome || ""); setWhatsapp(origem.whatsapp || "");
@@ -523,7 +545,9 @@ export default function VistoriaApp() {
       setAreaM2(origem.area_m2 || ""); setTotalComodos(origem.total_comodos || "");
       setNomeLocador(origem.nome_locador || ""); setNomeResponsavelEntrega(origem.nome_responsavel_entrega || "");
       setTipoImovel(origem.tipo_imovel || "apartamento"); setMobiliado(origem.mobiliado || "nao");
-      setQuartos(origem.quartos || 2); setBanheiros(origem.banheiros || 1); setFinalidade(origem.finalidade || "aluguel");
+      setQuartos(origem.quartos || 2); setBanheiros(origem.banheiros || 1);
+      setTemVaranda(!!origem.tem_varanda); setVarandas(origem.varandas || 1);
+      setFinalidade(origem.finalidade || "aluguel");
       setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
       setConcluidoEm(""); setPdfGerado(false); setParecerIA("");
       setVistoriaOrigemId(origem.id);
@@ -657,8 +681,8 @@ export default function VistoriaApp() {
   };
 
   const checklist = useMemo(
-    () => buildChecklist({ tipoImovel, mobiliado, quartos, banheiros }),
-    [tipoImovel, mobiliado, quartos, banheiros]
+    () => buildChecklist({ tipoImovel, mobiliado, quartos, banheiros, temVaranda, varandas }),
+    [tipoImovel, mobiliado, quartos, banheiros, temVaranda, varandas]
   );
   const totalItens = useMemo(() => checklist.reduce((n, c) => n + c.itens.length, 0), [checklist]);
   const totalChecked = useMemo(() => Object.values(checked).filter(Boolean).length, [checked]);
@@ -990,6 +1014,25 @@ export default function VistoriaApp() {
               </div>
             </div>
 
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Tem varanda?</p>
+            <div style={{ display: "flex", gap: 10, marginBottom: temVaranda ? 12 : 20 }}>
+              {[{ v: false, l: "Não" }, { v: true, l: "Sim" }].map(({ v, l }) => (
+                <button key={l} className="opt" onClick={() => setTemVaranda(v)}
+                  style={{ flex: 1, padding: "12px 8px", borderRadius: 3, cursor: "pointer", border: `1.5px solid ${temVaranda === v ? INK : LINE}`, background: temVaranda === v ? INK : "transparent", color: temVaranda === v ? PAPER : INK, fontSize: 13.5, fontWeight: 500 }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {temVaranda && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Quantas varandas</p>
+                <select className="field" value={varandas} onChange={(e) => setVarandas(Number(e.target.value))}
+                  style={{ width: "100%", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }}>
+                  {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 16, marginBottom: 26 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Área (m²) <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
@@ -1008,7 +1051,7 @@ export default function VistoriaApp() {
               try {
                 const row = await salvarVistoria(vistoriaId, userId, {
                   nome, whatsapp, apelido, cidade, rua, numero, bairro, cep, uf, areaM2, totalComodos, nomeLocador, nomeResponsavelEntrega,
-                  tipoImovel, mobiliado, quartos, banheiros, finalidade,
+                  tipoImovel, mobiliado, quartos, banheiros, temVaranda, varandas, finalidade,
                 });
                 setVistoriaId(row.id);
                 setTemVistoriaSalva(true);

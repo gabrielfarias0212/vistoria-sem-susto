@@ -188,6 +188,8 @@ export async function salvarVistoria(vistoriaId, userId, patch) {
     mobiliado: patch.mobiliado,
     quartos: patch.quartos,
     banheiros: patch.banheiros,
+    tem_varanda: !!patch.temVaranda,
+    varandas: patch.temVaranda ? patch.varandas : null,
     finalidade: patch.finalidade,
   };
   if (patch.concluidaEm !== undefined) payload.concluida_em = patch.concluidaEm;
