@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   ClipboardCheck, Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
   CheckCircle2, PlusCircle, LayoutDashboard, FileText, ArrowLeft, Printer, AlertTriangle,
-  Lock, Mail, LogOut, X as XIcon, Camera, Star, List,
+  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2,
 } from "lucide-react";
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
   fetchVistoriaPorId, fetchVistoriaSaida, fetchVistoriasDoUsuario,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
   consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura, gerarParecerIA,
-  enviarResetSenha, atualizarSenha, onPasswordRecovery,
+  enviarResetSenha, atualizarSenha, onPasswordRecovery, limparParecerVistoria, excluirVistoria,
 } from "./lib/vistoria";
 import { gerarPdfDeElemento } from "./lib/pdf";
 
@@ -161,6 +161,9 @@ export default function VistoriaApp() {
   const [temVistoriaSalva, setTemVistoriaSalva] = useState(false);
   const [listaVistorias, setListaVistorias] = useState([]);
   const [carregandoLista, setCarregandoLista] = useState(false);
+  const [confirmandoExclusaoId, setConfirmandoExclusaoId] = useState(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [excluirErro, setExcluirErro] = useState("");
   const [resetEmail, setResetEmail] = useState("");
   const [resetEnviado, setResetEnviado] = useState(false);
   const [resetErro, setResetErro] = useState("");
@@ -243,6 +246,15 @@ export default function VistoriaApp() {
     setTemVistoriaSalva(true);
   }, []);
 
+  const irParaDashboard = async (uid) => {
+    setCarregandoLista(true);
+    try {
+      setListaVistorias(await fetchVistoriasDoUsuario(uid));
+    } catch { setListaVistorias([]); }
+    setCarregandoLista(false);
+    setStep("dashboard");
+  };
+
   const afterAuth = useCallback(async (user) => {
     setUserId(user.id);
     try {
@@ -257,7 +269,7 @@ export default function VistoriaApp() {
 
     if (vistoria) {
       await aplicarVistoria(vistoria);
-      setStep(vistoria.concluida_em ? "dashboard" : "checklist");
+      if (vistoria.concluida_em) { await irParaDashboard(user.id); } else { setStep("checklist"); }
     } else {
       setPerfilPronto(false);
       setStep("perguntas");
@@ -272,15 +284,6 @@ export default function VistoriaApp() {
     } catch { setSaveError(true); }
   };
 
-  const abrirListaVistorias = async () => {
-    setCarregandoLista(true);
-    try {
-      setListaVistorias(await fetchVistoriasDoUsuario(userId));
-      setStep("lista");
-    } catch { setSaveError(true); }
-    setCarregandoLista(false);
-  };
-
   const voltarAoDashboard = async () => {
     if (vistoriaOrigemId) {
       await abrirVistoriaLigada(vistoriaOrigemId);
@@ -290,7 +293,7 @@ export default function VistoriaApp() {
       const vistoria = await fetchVistoriaAtual(userId);
       if (vistoria) {
         await aplicarVistoria(vistoria);
-        setStep(vistoria.concluida_em ? "dashboard" : "checklist");
+        if (vistoria.concluida_em) { await irParaDashboard(userId); } else { setStep("checklist"); }
       }
     } catch { setSaveError(true); }
   };
@@ -469,18 +472,90 @@ export default function VistoriaApp() {
     setStep("perguntas");
   };
 
-  const iniciarVistoriaSaida = async () => {
+  const iniciarVistoriaSaida = async (origemVistoria) => {
+    const origem = origemVistoria || {
+      id: vistoriaId, nome, whatsapp, apelido, endereco, cidade,
+      tipo_imovel: tipoImovel, mobiliado, quartos, banheiros, finalidade,
+    };
     try {
       const row = await salvarVistoria(null, userId, {
-        nome, whatsapp, apelido, endereco, cidade, tipoImovel, mobiliado, quartos, banheiros, finalidade, vistoriaOrigemId: vistoriaId,
+        nome: origem.nome, whatsapp: origem.whatsapp, apelido: origem.apelido, endereco: origem.endereco, cidade: origem.cidade,
+        tipoImovel: origem.tipo_imovel, mobiliado: origem.mobiliado, quartos: origem.quartos, banheiros: origem.banheiros,
+        finalidade: origem.finalidade, vistoriaOrigemId: origem.id,
       });
+      setNome(origem.nome || ""); setWhatsapp(origem.whatsapp || "");
+      setApelido(origem.apelido || ""); setEndereco(origem.endereco || ""); setCidade(origem.cidade || "");
+      setTipoImovel(origem.tipo_imovel || "apartamento"); setMobiliado(origem.mobiliado || "nao");
+      setQuartos(origem.quartos || 2); setBanheiros(origem.banheiros || 1); setFinalidade(origem.finalidade || "aluguel");
       setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
       setConcluidoEm(""); setPdfGerado(false); setParecerIA("");
-      setVistoriaOrigemId(vistoriaId);
+      setVistoriaOrigemId(origem.id);
       setVistoriaSaidaId(null);
       setVistoriaId(row.id);
+      setTemVistoriaSalva(true);
       setStep("checklist");
     } catch { setSaveError(true); }
+  };
+
+  const fazerVistoriaSaidaDoCard = async (id) => {
+    try {
+      const vistoria = await fetchVistoriaPorId(id);
+      await iniciarVistoriaSaida(vistoria);
+    } catch { setSaveError(true); }
+  };
+
+  const verRelatorioDoCard = async (id) => {
+    try {
+      const vistoria = await fetchVistoriaPorId(id);
+      await aplicarVistoria(vistoria);
+      const temCredito = vistoria.pdf_gerado || conta.assinatura_ativa || conta.creditos_restantes > 0;
+      if (!temCredito) {
+        setPagamentoErro(false);
+        try { setPlanos(await fetchPlanos()); } catch { /* lista fica vazia, texto genérico ainda aparece */ }
+        setStep("paywall");
+        return;
+      }
+      if (!vistoria.pdf_gerado) {
+        try {
+          await consumirCreditoPdf(userId, vistoria.id, conta);
+          setPdfGerado(true);
+          setConta((c) => (c.assinatura_ativa ? c : { ...c, creditos_restantes: c.creditos_restantes - 1 }));
+        } catch { setSaveError(true); return; }
+      }
+      if (!vistoria.parecer_ia) {
+        setGerandoParecer(true);
+        try { setParecerIA(await gerarParecerIA(vistoria.id)); } catch { /* segue sem parecer */ }
+        setGerandoParecer(false);
+      }
+      setStep("relatorio");
+    } catch { setSaveError(true); }
+  };
+
+  const editarVistoriaDoCard = async (id) => {
+    try {
+      const vistoria = await fetchVistoriaPorId(id);
+      await aplicarVistoria(vistoria);
+      if (vistoria.parecer_ia) {
+        await limparParecerVistoria(id);
+        setParecerIA("");
+      }
+      setStep("checklist");
+    } catch { setSaveError(true); }
+  };
+
+  const confirmarExclusaoVistoria = async (id) => {
+    setExcluindo(true);
+    setExcluirErro("");
+    try {
+      await excluirVistoria(id);
+      setConfirmandoExclusaoId(null);
+      setListaVistorias(await fetchVistoriasDoUsuario(userId));
+    } catch (err) {
+      setExcluirErro(err?.code === "23503"
+        ? "Essa vistoria tem uma vistoria de saída vinculada — exclua a saída primeiro."
+        : "Não consegui excluir agora. Tente de novo.");
+    }
+    setExcluindo(false);
   };
 
   const abrirRelatorio = async () => {
@@ -954,84 +1029,103 @@ export default function VistoriaApp() {
         {step === "dashboard" && (
           <div>
             <div style={{ position: "relative", background: INK, color: PAPER, borderRadius: 4, padding: "22px 22px 18px", marginBottom: 20 }}>
-              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1, display: "flex", alignItems: "center", gap: 8 }}>
-                {vistoriaOrigemId ? "VISTORIA DE SAÍDA" : "SUA VISTORIA"}
-              </p>
-              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>{apelido || `Oi, ${nome.split(" ")[0]}`}</h1>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1 }}>SUAS VISTORIAS</p>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 6px" }}>Oi, {nome.split(" ")[0] || "tudo pronto"}</h1>
               <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
-                {tipoImovel === "casa" ? "Casa" : "Apartamento"} · {quartos} quarto{quartos > 1 ? "s" : ""} · {banheiros} banheiro{banheiros > 1 ? "s" : ""} · {mobiliado === "sim" ? "mobiliado" : "sem mobília"}
-                {(endereco || cidade) && ` · ${[endereco, cidade].filter(Boolean).join(", ")}`}
+                Você tem {listaVistorias.length} vistoria{listaVistorias.length === 1 ? "" : "s"} realizada{listaVistorias.length === 1 ? "" : "s"}.
               </p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.6 }}>concluída em {concluidoEm} · {pct}% conferido</p>
             </div>
 
-            <button onClick={() => setStep("painel")}
-              style={{ width: "100%", padding: "13px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-              <LayoutDashboard size={17} /> Ver vistoria e relatório
-            </button>
-
-            {!vistoriaOrigemId && finalidade === "aluguel" && (
-              vistoriaSaidaId ? (
-                <button onClick={() => abrirVistoriaLigada(vistoriaSaidaId)}
-                  style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-                  <ArrowLeft size={16} /> Ver vistoria de saída
-                </button>
-              ) : (
-                <button onClick={iniciarVistoriaSaida}
-                  style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-                  <PlusCircle size={16} /> Fazer vistoria de saída
-                </button>
-              )
-            )}
-            {vistoriaOrigemId && (
-              <button onClick={() => abrirVistoriaLigada(vistoriaOrigemId)}
-                style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-                <ArrowLeft size={16} /> Ver vistoria de entrada
-              </button>
-            )}
-
             <button onClick={reiniciar}
-              style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
-              <PlusCircle size={15} /> Iniciar vistoria de outro imóvel
+              style={{ width: "100%", padding: "12px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+              <PlusCircle size={17} /> Nova vistoria
             </button>
-            <button onClick={abrirListaVistorias} disabled={carregandoLista}
-              style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: carregandoLista ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <List size={15} /> {carregandoLista ? "Carregando…" : "Ver todas as minhas vistorias"}
-            </button>
-          </div>
-        )}
 
-        {step === "lista" && (
-          <div>
-            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, margin: "0 0 18px" }}>Minhas vistorias</h1>
-
-            {listaVistorias.length === 0 && (
-              <p style={{ fontSize: 13.5, opacity: 0.6, textAlign: "center", margin: "20px 0" }}>Nenhuma vistoria encontrada.</p>
+            {excluirErro && (
+              <p style={{ background: "#FBE7E7", color: RED, fontSize: 12.5, padding: "8px 12px", borderRadius: 4, marginBottom: 14, textAlign: "center" }}>
+                {excluirErro}
+              </p>
             )}
 
-            {listaVistorias.map((v) => (
-              <button key={v.id} onClick={() => abrirVistoriaLigada(v.id)}
-                style={{ width: "100%", textAlign: "left", background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14.5, display: "flex", alignItems: "center", gap: 6 }}>
-                    {v.apelido || v.nome || "Vistoria sem nome"}
-                    {v.vistoria_origem_id && (
-                      <span style={{ background: AMBER, color: INK, padding: "1px 6px", borderRadius: 3, fontSize: 10, letterSpacing: 0.3 }}>SAÍDA</span>
-                    )}
-                  </p>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.65 }}>
-                    {v.tipo_imovel === "casa" ? "Casa" : "Apartamento"} · {v.quartos} quarto{v.quartos > 1 ? "s" : ""} · {v.banheiros} banheiro{v.banheiros > 1 ? "s" : ""}
-                  </p>
-                </div>
-                <span style={{ fontSize: 11.5, fontWeight: 600, color: v.concluida_em ? GREEN : AMBER, whiteSpace: "nowrap" }}>
-                  {v.concluida_em ? `concluída ${new Date(v.concluida_em).toLocaleDateString("pt-BR")}` : "em andamento"}
-                </span>
-              </button>
-            ))}
+            {carregandoLista && <p style={{ textAlign: "center", opacity: 0.6, fontSize: 13.5 }}>Carregando…</p>}
 
-            <button onClick={voltarAoDashboard} style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
-              <ArrowLeft size={14} /> voltar
-            </button>
+            {!carregandoLista && listaVistorias.length === 0 && (
+              <p style={{ fontSize: 13.5, opacity: 0.6, textAlign: "center", margin: "20px 0" }}>Nenhuma vistoria ainda.</p>
+            )}
+
+            {(() => {
+              const idsComSaida = new Set(listaVistorias.filter((v) => v.vistoria_origem_id).map((v) => v.vistoria_origem_id));
+              return listaVistorias.map((v) => {
+                const ehSaida = !!v.vistoria_origem_id;
+                const podeCriarSaida = v.finalidade === "aluguel" && !ehSaida && v.concluida_em && !idsComSaida.has(v.id);
+                const confirmando = confirmandoExclusaoId === v.id;
+                return (
+                  <div key={v.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: confirmando ? 10 : 12 }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: 14.5, display: "flex", alignItems: "center", gap: 6 }}>
+                          {v.apelido || v.nome || "Vistoria sem nome"}
+                          {ehSaida && (
+                            <span style={{ background: AMBER, color: INK, padding: "1px 6px", borderRadius: 3, fontSize: 10, letterSpacing: 0.3 }}>SAÍDA</span>
+                          )}
+                        </p>
+                        <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.65 }}>
+                          {v.tipo_imovel === "casa" ? "Casa" : "Apartamento"} · {v.quartos} quarto{v.quartos > 1 ? "s" : ""} · {v.banheiros} banheiro{v.banheiros > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: v.concluida_em ? GREEN : AMBER, whiteSpace: "nowrap" }}>
+                        {v.concluida_em ? `concluída ${new Date(v.concluida_em).toLocaleDateString("pt-BR")}` : "em andamento"}
+                      </span>
+                    </div>
+
+                    {confirmando ? (
+                      <>
+                        <p style={{ fontSize: 12.5, color: RED, margin: "0 0 10px" }}>Excluir apaga o checklist e as fotos dessa vistoria. Não dá pra desfazer.</p>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => confirmarExclusaoVistoria(v.id)} disabled={excluindo}
+                            style={{ flex: 1, padding: "8px 10px", background: RED, color: "#fff", border: "none", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: excluindo ? "default" : "pointer", opacity: excluindo ? 0.7 : 1 }}>
+                            {excluindo ? "Excluindo…" : "Sim, excluir"}
+                          </button>
+                          <button onClick={() => { setConfirmandoExclusaoId(null); setExcluirErro(""); }} disabled={excluindo}
+                            style={{ flex: 1, padding: "8px 10px", background: "transparent", border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, cursor: "pointer" }}>
+                            Voltar
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        <button onClick={() => abrirVistoriaLigada(v.id)}
+                          style={{ padding: "7px 12px", background: INK, color: PAPER, border: "none", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                          Abrir
+                        </button>
+                        {v.concluida_em && (
+                          <button onClick={() => verRelatorioDoCard(v.id)}
+                            style={{ padding: "7px 12px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                            <FileText size={13} /> Relatório
+                          </button>
+                        )}
+                        {v.concluida_em && (
+                          <button onClick={() => editarVistoriaDoCard(v.id)}
+                            style={{ padding: "7px 12px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                            <Pencil size={13} /> Editar
+                          </button>
+                        )}
+                        {podeCriarSaida && (
+                          <button onClick={() => fazerVistoriaSaidaDoCard(v.id)}
+                            style={{ padding: "7px 12px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, fontWeight: 500, cursor: "pointer" }}>
+                            + Vistoria de saída
+                          </button>
+                        )}
+                        <button onClick={() => { setConfirmandoExclusaoId(v.id); setExcluirErro(""); }}
+                          style={{ padding: "7px 10px", background: "transparent", color: RED, opacity: 0.75, border: "none", borderRadius: 3, fontSize: 12.5, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, marginLeft: "auto" }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
 

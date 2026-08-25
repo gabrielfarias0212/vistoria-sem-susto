@@ -104,6 +104,26 @@ export async function gerarParecerIA(vistoriaId) {
   return data.parecer;
 }
 
+export async function limparParecerVistoria(vistoriaId) {
+  const { error } = await supabase.from("vistorias").update({ parecer_ia: null }).eq("id", vistoriaId);
+  if (error) throw error;
+}
+
+export async function excluirVistoria(vistoriaId) {
+  const { data: fotos, error: fotosError } = await supabase
+    .from("checklist_fotos")
+    .select("storage_path")
+    .eq("vistoria_id", vistoriaId);
+  if (fotosError) throw fotosError;
+
+  if (fotos?.length) {
+    await supabase.storage.from(FOTOS_BUCKET).remove(fotos.map((f) => f.storage_path));
+  }
+
+  const { error } = await supabase.from("vistorias").delete().eq("id", vistoriaId);
+  if (error) throw error;
+}
+
 export async function fetchVistoriaAtual(userId) {
   const { data, error } = await supabase
     .from("vistorias")
@@ -242,9 +262,15 @@ export async function fetchChecklistState(vistoriaId, checklist) {
     Object.entries(fotosPorItem).map(async ([itemId, lista]) => {
       const key = rowById[itemId];
       if (!key) return;
-      const comFotoUrl = await Promise.all(
-        lista.map(async (f) => ({ id: f.id, path: f.storage_path, url: await signedUrlFor(f.storage_path) }))
-      );
+      const comFotoUrl = (await Promise.all(
+        lista.map(async (f) => {
+          try {
+            return { id: f.id, path: f.storage_path, url: await signedUrlFor(f.storage_path) };
+          } catch {
+            return null; // arquivo sumiu do storage ou falhou ao assinar — não derruba o checklist inteiro
+          }
+        })
+      )).filter(Boolean);
       fotos[key] = comFotoUrl;
     })
   );
