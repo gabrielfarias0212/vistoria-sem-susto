@@ -138,11 +138,24 @@ export async function fetchVistoriaSaida(origemId) {
   return data;
 }
 
+export async function fetchVistoriasDoUsuario(userId) {
+  const { data, error } = await supabase
+    .from("vistorias")
+    .select("id, apelido, nome, tipo_imovel, quartos, banheiros, finalidade, concluida_em, vistoria_origem_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function salvarVistoria(vistoriaId, userId, patch) {
   const payload = {
     user_id: userId,
     nome: patch.nome,
     whatsapp: patch.whatsapp,
+    apelido: patch.apelido,
+    endereco: patch.endereco || null,
+    cidade: patch.cidade || null,
     tipo_imovel: patch.tipoImovel,
     mobiliado: patch.mobiliado,
     quartos: patch.quartos,

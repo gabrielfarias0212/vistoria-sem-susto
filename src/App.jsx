@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   ClipboardCheck, Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
   CheckCircle2, PlusCircle, LayoutDashboard, FileText, ArrowLeft, Printer, AlertTriangle,
-  Lock, Mail, LogOut, X as XIcon, Camera, Star,
+  Lock, Mail, LogOut, X as XIcon, Camera, Star, List,
 } from "lucide-react";
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
-  fetchVistoriaPorId, fetchVistoriaSaida,
+  fetchVistoriaPorId, fetchVistoriaSaida, fetchVistoriasDoUsuario,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
   consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura, gerarParecerIA,
   enviarResetSenha, atualizarSenha, onPasswordRecovery,
@@ -159,6 +159,8 @@ export default function VistoriaApp() {
   const [vistoriaOrigemId, setVistoriaOrigemId] = useState(null);
   const [vistoriaSaidaId, setVistoriaSaidaId] = useState(null);
   const [temVistoriaSalva, setTemVistoriaSalva] = useState(false);
+  const [listaVistorias, setListaVistorias] = useState([]);
+  const [carregandoLista, setCarregandoLista] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetEnviado, setResetEnviado] = useState(false);
   const [resetErro, setResetErro] = useState("");
@@ -170,6 +172,10 @@ export default function VistoriaApp() {
 
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [apelido, setApelido] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [apelidoErro, setApelidoErro] = useState("");
   const [tipoImovel, setTipoImovel] = useState("apartamento");
   const [mobiliado, setMobiliado] = useState("nao");
   const [quartos, setQuartos] = useState(2);
@@ -199,6 +205,9 @@ export default function VistoriaApp() {
     setVistoriaId(vistoria.id);
     setNome(vistoria.nome || "");
     setWhatsapp(vistoria.whatsapp || "");
+    setApelido(vistoria.apelido || "");
+    setEndereco(vistoria.endereco || "");
+    setCidade(vistoria.cidade || "");
     setTipoImovel(vistoria.tipo_imovel || "apartamento");
     setMobiliado(vistoria.mobiliado || "nao");
     setQuartos(vistoria.quartos || 2);
@@ -259,8 +268,17 @@ export default function VistoriaApp() {
     try {
       const vistoria = await fetchVistoriaPorId(id);
       await aplicarVistoria(vistoria);
-      setStep("painel");
+      setStep(vistoria.concluida_em ? "painel" : "checklist");
     } catch { setSaveError(true); }
+  };
+
+  const abrirListaVistorias = async () => {
+    setCarregandoLista(true);
+    try {
+      setListaVistorias(await fetchVistoriasDoUsuario(userId));
+      setStep("lista");
+    } catch { setSaveError(true); }
+    setCarregandoLista(false);
   };
 
   const voltarAoDashboard = async () => {
@@ -434,7 +452,7 @@ export default function VistoriaApp() {
     const agora = new Date();
     try {
       const row = await salvarVistoria(vistoriaId, userId, {
-        nome, whatsapp, tipoImovel, mobiliado, quartos, banheiros, finalidade, concluidaEm: agora.toISOString(),
+        nome, whatsapp, apelido, endereco, cidade, tipoImovel, mobiliado, quartos, banheiros, finalidade, concluidaEm: agora.toISOString(),
       });
       setVistoriaId(row.id);
       setConcluidoEm(agora.toLocaleDateString("pt-BR"));
@@ -446,7 +464,7 @@ export default function VistoriaApp() {
     setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
     setTipoImovel("apartamento"); setMobiliado("nao");
     setQuartos(2); setBanheiros(1); setConcluidoEm(""); setPerfilPronto(false); setPdfGerado(false);
-    setVistoriaId(null); setParecerIA("");
+    setVistoriaId(null); setParecerIA(""); setApelido(""); setEndereco(""); setCidade(""); setApelidoErro("");
     setVistoriaOrigemId(null); setVistoriaSaidaId(null);
     setStep("perguntas");
   };
@@ -454,7 +472,7 @@ export default function VistoriaApp() {
   const iniciarVistoriaSaida = async () => {
     try {
       const row = await salvarVistoria(null, userId, {
-        nome, whatsapp, tipoImovel, mobiliado, quartos, banheiros, finalidade, vistoriaOrigemId: vistoriaId,
+        nome, whatsapp, apelido, endereco, cidade, tipoImovel, mobiliado, quartos, banheiros, finalidade, vistoriaOrigemId: vistoriaId,
       });
       setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
       setConcluidoEm(""); setPdfGerado(false); setParecerIA("");
@@ -738,6 +756,25 @@ export default function VistoriaApp() {
             <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, letterSpacing: 1, color: AMBER, margin: "0 0 4px" }}>PASSO 2 DE 2</p>
             <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 24, fontWeight: 600, margin: "0 0 22px" }}>Sobre o seu imóvel</h1>
 
+            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Nome do imóvel/vistoria</label>
+            <input className="field" value={apelido} onChange={(e) => { setApelido(e.target.value); if (apelidoErro) setApelidoErro(""); }} placeholder="ex: Apto 302 - Rua Augusta"
+              style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${apelidoErro ? RED : LINE}`, borderRadius: 3, marginBottom: 4, fontFamily: "inherit", fontSize: 14.5 }} />
+            <p style={{ fontSize: 11.5, opacity: 0.55, margin: "0 0 14px" }}>Ajuda a identificar essa vistoria depois, se você tiver mais de uma.</p>
+            {apelidoErro && <p style={{ color: RED, fontSize: 12.5, margin: "-10px 0 14px" }}>{apelidoErro}</p>}
+
+            <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Endereço <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                <input className="field" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, número"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Cidade <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                <input className="field" value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Sua cidade"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+            </div>
+
             <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Tipo de imóvel</p>
             <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
               {[{ v: "apartamento", l: "Apartamento", i: Building2 }, { v: "casa", l: "Casa", i: Home }].map(({ v, l, i: Icon }) => (
@@ -791,9 +828,11 @@ export default function VistoriaApp() {
             </div>
 
             <button onClick={async () => {
+              if (!apelido.trim()) { setApelidoErro("Dá um nome pra essa vistoria — ajuda a encontrar ela depois."); return; }
               try {
-                const row = await salvarVistoria(vistoriaId, userId, { nome, whatsapp, tipoImovel, mobiliado, quartos, banheiros, finalidade });
+                const row = await salvarVistoria(vistoriaId, userId, { nome, whatsapp, apelido, endereco, cidade, tipoImovel, mobiliado, quartos, banheiros, finalidade });
                 setVistoriaId(row.id);
+                setTemVistoriaSalva(true);
               } catch { setSaveError(true); }
               setStep("checklist");
             }}
@@ -918,9 +957,10 @@ export default function VistoriaApp() {
               <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1, display: "flex", alignItems: "center", gap: 8 }}>
                 {vistoriaOrigemId ? "VISTORIA DE SAÍDA" : "SUA VISTORIA"}
               </p>
-              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>Oi, {nome.split(" ")[0]}</h1>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>{apelido || `Oi, ${nome.split(" ")[0]}`}</h1>
               <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
                 {tipoImovel === "casa" ? "Casa" : "Apartamento"} · {quartos} quarto{quartos > 1 ? "s" : ""} · {banheiros} banheiro{banheiros > 1 ? "s" : ""} · {mobiliado === "sim" ? "mobiliado" : "sem mobília"}
+                {(endereco || cidade) && ` · ${[endereco, cidade].filter(Boolean).join(", ")}`}
               </p>
               <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.6 }}>concluída em {concluidoEm} · {pct}% conferido</p>
             </div>
@@ -951,8 +991,46 @@ export default function VistoriaApp() {
             )}
 
             <button onClick={reiniciar}
-              style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
               <PlusCircle size={15} /> Iniciar vistoria de outro imóvel
+            </button>
+            <button onClick={abrirListaVistorias} disabled={carregandoLista}
+              style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: carregandoLista ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <List size={15} /> {carregandoLista ? "Carregando…" : "Ver todas as minhas vistorias"}
+            </button>
+          </div>
+        )}
+
+        {step === "lista" && (
+          <div>
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, margin: "0 0 18px" }}>Minhas vistorias</h1>
+
+            {listaVistorias.length === 0 && (
+              <p style={{ fontSize: 13.5, opacity: 0.6, textAlign: "center", margin: "20px 0" }}>Nenhuma vistoria encontrada.</p>
+            )}
+
+            {listaVistorias.map((v) => (
+              <button key={v.id} onClick={() => abrirVistoriaLigada(v.id)}
+                style={{ width: "100%", textAlign: "left", background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14.5, display: "flex", alignItems: "center", gap: 6 }}>
+                    {v.apelido || v.nome || "Vistoria sem nome"}
+                    {v.vistoria_origem_id && (
+                      <span style={{ background: AMBER, color: INK, padding: "1px 6px", borderRadius: 3, fontSize: 10, letterSpacing: 0.3 }}>SAÍDA</span>
+                    )}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.65 }}>
+                    {v.tipo_imovel === "casa" ? "Casa" : "Apartamento"} · {v.quartos} quarto{v.quartos > 1 ? "s" : ""} · {v.banheiros} banheiro{v.banheiros > 1 ? "s" : ""}
+                  </p>
+                </div>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: v.concluida_em ? GREEN : AMBER, whiteSpace: "nowrap" }}>
+                  {v.concluida_em ? `concluída ${new Date(v.concluida_em).toLocaleDateString("pt-BR")}` : "em andamento"}
+                </span>
+              </button>
+            ))}
+
+            <button onClick={voltarAoDashboard} style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
+              <ArrowLeft size={14} /> voltar
             </button>
           </div>
         )}
@@ -966,7 +1044,7 @@ export default function VistoriaApp() {
                   <span style={{ background: AMBER, color: INK, padding: "2px 7px", borderRadius: 3, fontSize: 10.5, letterSpacing: 0.5 }}>VISTORIA DE SAÍDA</span>
                 )}
               </p>
-              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>{nome.split(" ")[0]}, aqui está o resumo</h1>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>{apelido || `${nome.split(" ")[0]}, aqui está o resumo`}</h1>
               <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
                 {tipoImovel === "casa" ? "Casa" : "Apartamento"} · {quartos} quarto{quartos > 1 ? "s" : ""} · {banheiros} banheiro{banheiros > 1 ? "s" : ""} · {mobiliado === "sim" ? "mobiliado" : "sem mobília"}
               </p>
