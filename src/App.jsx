@@ -246,7 +246,7 @@ export default function VistoriaApp() {
 
     if (vistoria) {
       await aplicarVistoria(vistoria);
-      setStep("checklist");
+      setStep(vistoria.concluida_em ? "dashboard" : "checklist");
     } else {
       setPerfilPronto(false);
       setStep("perguntas");
@@ -882,6 +882,51 @@ export default function VistoriaApp() {
             </button>
             <button onClick={reiniciar} style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
               <RotateCcw size={14} /> refazer perguntas do imóvel
+            </button>
+          </div>
+        )}
+
+        {step === "dashboard" && (
+          <div>
+            <div style={{ position: "relative", background: INK, color: PAPER, borderRadius: 4, padding: "22px 22px 18px", marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                {vistoriaOrigemId ? "VISTORIA DE SAÍDA" : "SUA VISTORIA"}
+              </p>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>Oi, {nome.split(" ")[0]}</h1>
+              <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
+                {tipoImovel === "casa" ? "Casa" : "Apartamento"} · {quartos} quarto{quartos > 1 ? "s" : ""} · {banheiros} banheiro{banheiros > 1 ? "s" : ""} · {mobiliado === "sim" ? "mobiliado" : "sem mobília"}
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, opacity: 0.6 }}>concluída em {concluidoEm} · {pct}% conferido</p>
+            </div>
+
+            <button onClick={() => setStep("painel")}
+              style={{ width: "100%", padding: "13px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+              <LayoutDashboard size={17} /> Ver vistoria e relatório
+            </button>
+
+            {!vistoriaOrigemId && finalidade === "aluguel" && (
+              vistoriaSaidaId ? (
+                <button onClick={() => abrirVistoriaLigada(vistoriaSaidaId)}
+                  style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                  <ArrowLeft size={16} /> Ver vistoria de saída
+                </button>
+              ) : (
+                <button onClick={iniciarVistoriaSaida}
+                  style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                  <PlusCircle size={16} /> Fazer vistoria de saída
+                </button>
+              )
+            )}
+            {vistoriaOrigemId && (
+              <button onClick={() => abrirVistoriaLigada(vistoriaOrigemId)}
+                style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                <ArrowLeft size={16} /> Ver vistoria de entrada
+              </button>
+            )}
+
+            <button onClick={reiniciar}
+              style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <PlusCircle size={15} /> Iniciar vistoria de outro imóvel
             </button>
           </div>
         )}
