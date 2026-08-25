@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
   CheckCircle2, PlusCircle, LayoutDashboard, FileText, ArrowLeft, Printer, AlertTriangle,
-  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2, Settings,
+  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2, Settings, Wrench,
 } from "lucide-react";
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
@@ -202,6 +202,7 @@ export default function VistoriaApp() {
   const [concluidoEm, setConcluidoEm] = useState("");
   const [saveError, setSaveError] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [dicaFerramentasFechada, setDicaFerramentasFechada] = useState(false);
 
   const [modo, setModo] = useState("criar");
   const [email, setEmail] = useState("");
@@ -1034,6 +1035,23 @@ export default function VistoriaApp() {
               </div>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 22, fontWeight: 500, color: pct === 100 ? GREEN : AMBER }}>{pct}%</div>
             </div>
+
+            {!dicaFerramentasFechada && (
+              <div style={{ background: "#FBF3E6", border: `1px solid ${AMBER}55`, borderRadius: 4, padding: "14px 16px", marginBottom: 18, position: "relative" }}>
+                <button onClick={() => setDicaFerramentasFechada(true)} aria-label="Fechar dica"
+                  style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", color: INK, opacity: 0.5, padding: 2, display: "flex" }}>
+                  <XIcon size={15} />
+                </button>
+                <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
+                  <Wrench size={15} color={AMBER} /> Antes de começar
+                </p>
+                <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, opacity: 0.85 }}>
+                  Leve <strong>celular carregado</strong>, uma <strong>trena</strong> e algo pra marcar problemas no local (post-it ou fita crepe).
+                  Se o imóvel ainda não tem <strong>água, luz ou gás</strong> ligados, tudo bem — marque esses itens e volte pra conferir depois.
+                </p>
+              </div>
+            )}
+
             <div style={{ height: 6, background: LINE, borderRadius: 3, marginBottom: 22, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? GREEN : AMBER, transition: "width .3s ease" }} />
             </div>
