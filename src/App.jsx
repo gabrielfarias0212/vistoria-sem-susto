@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  ClipboardCheck, Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
+  Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
   CheckCircle2, PlusCircle, LayoutDashboard, FileText, ArrowLeft, Printer, AlertTriangle,
   Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2, Settings,
 } from "lucide-react";
@@ -666,8 +666,8 @@ export default function VistoriaApp() {
 
       {step !== "relatorio" && (
         <header className="no-print" style={{ background: INK, color: PAPER, padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <ClipboardCheck size={22} color={AMBER} />
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <img src="/logo.png" alt="" width={26} height={26} />
             <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 19, letterSpacing: 0.2 }}>Vistoria Sem Susto</span>
           </div>
           {step !== "login" && step !== "loading" && step !== "esqueci" && (
@@ -1383,7 +1383,7 @@ export default function VistoriaApp() {
 
             <div ref={printableRef} className="printable" style={{ background: "#fff", color: "#1a1a1a", maxWidth: 640, margin: "0 auto", padding: "36px 30px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <ClipboardCheck size={20} />
+                <img src="/logo.png" alt="" width={22} height={22} />
                 <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18 }}>Relatório de Vistoria</span>
               </div>
               <p style={{ fontSize: 12, opacity: 0.6, margin: "0 0 20px" }}>Gerado em {concluidoEm || new Date().toLocaleDateString("pt-BR")}</p>
