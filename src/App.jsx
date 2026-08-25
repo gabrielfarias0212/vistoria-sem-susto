@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import {
   ClipboardCheck, Home, Building2, Sofa, ChevronRight, RotateCcw, Sparkles,
   CheckCircle2, PlusCircle, LayoutDashboard, FileText, ArrowLeft, Printer, AlertTriangle,
-  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2,
+  Lock, Mail, LogOut, X as XIcon, Camera, Star, Pencil, Trash2, Settings,
 } from "lucide-react";
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
@@ -152,6 +152,7 @@ export default function VistoriaApp() {
   const [pagamentoStatus, setPagamentoStatus] = useState(null);
   const [comprando, setComprando] = useState(null);
   const [pagamentoErro, setPagamentoErro] = useState(false);
+  const [paywallVoltarPara, setPaywallVoltarPara] = useState("painel");
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
   const [cancelando, setCancelando] = useState(false);
   const [parecerIA, setParecerIA] = useState("");
@@ -296,6 +297,14 @@ export default function VistoriaApp() {
         if (vistoria.concluida_em) { await irParaDashboard(userId); } else { setStep("checklist"); }
       }
     } catch { setSaveError(true); }
+  };
+
+  const abrirMinhaConta = async () => {
+    try {
+      setConta(await getConta(userId));
+      setPlanos(await fetchPlanos());
+    } catch { /* mostra a tela mesmo assim, com o que já tiver em state */ }
+    setStep("conta");
   };
 
   useEffect(() => {
@@ -512,6 +521,7 @@ export default function VistoriaApp() {
       if (!temCredito) {
         setPagamentoErro(false);
         try { setPlanos(await fetchPlanos()); } catch { /* lista fica vazia, texto genérico ainda aparece */ }
+        setPaywallVoltarPara("painel");
         setStep("paywall");
         return;
       }
@@ -563,6 +573,7 @@ export default function VistoriaApp() {
     if (!temCredito) {
       setPagamentoErro(false);
       try { setPlanos(await fetchPlanos()); } catch { /* lista fica vazia, texto genérico ainda aparece */ }
+      setPaywallVoltarPara("painel");
       setStep("paywall");
       return;
     }
@@ -660,9 +671,16 @@ export default function VistoriaApp() {
             <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 19, letterSpacing: 0.2 }}>Vistoria Sem Susto</span>
           </div>
           {step !== "login" && step !== "loading" && step !== "esqueci" && (
-            <button onClick={sair} style={{ background: "none", border: "none", color: PAPER, opacity: 0.7, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
-              <LogOut size={15} /> sair
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              {step !== "conta" && step !== "nova-senha" && (
+                <button onClick={abrirMinhaConta} style={{ background: "none", border: "none", color: PAPER, opacity: 0.7, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
+                  <Settings size={15} /> minha conta
+                </button>
+              )}
+              <button onClick={sair} style={{ background: "none", border: "none", color: PAPER, opacity: 0.7, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontSize: 13 }}>
+                <LogOut size={15} /> sair
+              </button>
+            </div>
           )}
         </header>
       )}
@@ -1188,35 +1206,6 @@ export default function VistoriaApp() {
               </div>
             )}
 
-            {conta.assinatura_ativa && (
-              <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "14px 16px", marginBottom: 20 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
-                  <Star size={13} color={AMBER} /> Assinatura Profissional ativa
-                </p>
-                <p style={{ margin: "2px 0 12px", fontSize: 12, opacity: 0.65 }}>Vistorias ilimitadas todo mês.</p>
-                {confirmandoCancelamento ? (
-                  <>
-                    <p style={{ fontSize: 12.5, color: RED, margin: "0 0 10px" }}>Tem certeza? Você perde o acesso ilimitado imediatamente.</p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={confirmarCancelamento} disabled={cancelando}
-                        style={{ flex: 1, padding: "8px 10px", background: RED, color: "#fff", border: "none", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: cancelando ? "default" : "pointer", opacity: cancelando ? 0.7 : 1 }}>
-                        {cancelando ? "Cancelando…" : "Sim, cancelar"}
-                      </button>
-                      <button onClick={() => setConfirmandoCancelamento(false)} disabled={cancelando}
-                        style={{ flex: 1, padding: "8px 10px", background: "transparent", border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, cursor: "pointer" }}>
-                        Voltar
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <button onClick={() => setConfirmandoCancelamento(true)}
-                    style={{ background: "none", border: "none", color: RED, opacity: 0.75, fontSize: 12.5, cursor: "pointer", padding: 0 }}>
-                    Cancelar assinatura
-                  </button>
-                )}
-              </div>
-            )}
-
             {finalidade === "aluguel" && (
               <p style={{ fontSize: 12.5, opacity: 0.65, textAlign: "center", margin: "0 0 14px" }}>
                 Guarde este relatório — na saída, dá pra comparar e confirmar que nada mudou.
@@ -1303,9 +1292,80 @@ export default function VistoriaApp() {
               Pagamento processado pelo Mercado Pago (Pix, cartão ou boleto). Seu crédito é liberado automaticamente assim que a compra é confirmada.
             </p>
 
-            <button onClick={() => setStep("painel")}
+            <button onClick={() => setStep(paywallVoltarPara)}
               style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <ArrowLeft size={16} /> Voltar ao painel
+              <ArrowLeft size={16} /> Voltar
+            </button>
+          </div>
+        )}
+
+        {step === "conta" && (
+          <div>
+            <div style={{ position: "relative", background: INK, color: PAPER, borderRadius: 4, padding: "22px 22px 18px", marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1 }}>MINHA CONTA</p>
+              <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 21, margin: "4px 0 6px", wordBreak: "break-all" }}>{email}</h1>
+              <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>{nome}{whatsapp ? ` · ${whatsapp}` : ""}</p>
+            </div>
+
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "16px 18px", marginBottom: 16 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 15.5, fontWeight: 600, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                {conta.assinatura_ativa && <Star size={14} color={AMBER} />} Plano atual
+              </h2>
+              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600 }}>
+                {planos.find((p) => p.id === conta.plano_id)?.nome || (conta.plano_id === "avulso" ? "Avulso" : conta.plano_id)}
+              </p>
+              <p style={{ margin: "0 0 14px", fontSize: 12.5, opacity: 0.7 }}>
+                {conta.assinatura_ativa
+                  ? "Vistorias ilimitadas enquanto a assinatura estiver ativa."
+                  : `${conta.creditos_restantes} ${conta.creditos_restantes === 1 ? "crédito disponível" : "créditos disponíveis"} pra gerar relatório em PDF.`}
+              </p>
+
+              {conta.assinatura_ativa && (
+                confirmandoCancelamento ? (
+                  <>
+                    <p style={{ fontSize: 12.5, color: RED, margin: "0 0 10px" }}>Tem certeza? Você perde o acesso ilimitado imediatamente.</p>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                      <button onClick={confirmarCancelamento} disabled={cancelando}
+                        style={{ flex: 1, padding: "8px 10px", background: RED, color: "#fff", border: "none", borderRadius: 3, fontSize: 12.5, fontWeight: 600, cursor: cancelando ? "default" : "pointer", opacity: cancelando ? 0.7 : 1 }}>
+                        {cancelando ? "Cancelando…" : "Sim, cancelar"}
+                      </button>
+                      <button onClick={() => setConfirmandoCancelamento(false)} disabled={cancelando}
+                        style={{ flex: 1, padding: "8px 10px", background: "transparent", border: `1.5px solid ${LINE}`, borderRadius: 3, fontSize: 12.5, cursor: "pointer" }}>
+                        Voltar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmandoCancelamento(true)}
+                    style={{ background: "none", border: "none", color: RED, opacity: 0.75, fontSize: 12.5, cursor: "pointer", padding: 0, marginBottom: 14, display: "block" }}>
+                    Cancelar assinatura
+                  </button>
+                )
+              )}
+
+              <button onClick={() => { setPaywallVoltarPara("conta"); setStep("paywall"); }}
+                style={{ width: "100%", padding: "10px 14px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 13.5, cursor: "pointer" }}>
+                Ver planos e comprar créditos
+              </button>
+            </div>
+
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 4, padding: "16px 18px", marginBottom: 16 }}>
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 15.5, fontWeight: 600, margin: "0 0 12px" }}>Alterar senha</h2>
+              <label style={{ fontSize: 12.5, fontWeight: 600, display: "block", marginBottom: 4 }}>Nova senha</label>
+              <input className="field" type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} placeholder="mínimo 6 caracteres"
+                style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 3, marginBottom: 10, fontFamily: "inherit", fontSize: 14 }} />
+              <label style={{ fontSize: 12.5, fontWeight: 600, display: "block", marginBottom: 4 }}>Confirmar nova senha</label>
+              <input className="field" type="password" value={confirmarNovaSenha} onChange={(e) => setConfirmarNovaSenha(e.target.value)} placeholder="repita a senha"
+                style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", border: `1px solid ${LINE}`, borderRadius: 3, marginBottom: 10, fontFamily: "inherit", fontSize: 14 }} />
+              {novaSenhaErro && <p style={{ color: RED, fontSize: 12, margin: "-4px 0 10px" }}>{novaSenhaErro}</p>}
+              <button onClick={salvarNovaSenha} disabled={salvandoNovaSenha}
+                style={{ width: "100%", padding: "10px 14px", background: INK, color: PAPER, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 13.5, cursor: salvandoNovaSenha ? "default" : "pointer", opacity: salvandoNovaSenha ? 0.7 : 1 }}>
+                {salvandoNovaSenha ? "Salvando…" : "Salvar nova senha"}
+              </button>
+            </div>
+
+            <button onClick={voltarAoDashboard} style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
+              <ArrowLeft size={14} /> voltar ao dashboard
             </button>
           </div>
         )}
