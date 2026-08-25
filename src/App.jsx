@@ -177,8 +177,16 @@ export default function VistoriaApp() {
   const [nome, setNome] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [apelido, setApelido] = useState("");
-  const [endereco, setEndereco] = useState("");
   const [cidade, setCidade] = useState("");
+  const [rua, setRua] = useState("");
+  const [numero, setNumero] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cep, setCep] = useState("");
+  const [uf, setUf] = useState("");
+  const [areaM2, setAreaM2] = useState("");
+  const [totalComodos, setTotalComodos] = useState("");
+  const [nomeLocador, setNomeLocador] = useState("");
+  const [nomeResponsavelEntrega, setNomeResponsavelEntrega] = useState("");
   const [apelidoErro, setApelidoErro] = useState("");
   const [tipoImovel, setTipoImovel] = useState("apartamento");
   const [mobiliado, setMobiliado] = useState("nao");
@@ -210,8 +218,16 @@ export default function VistoriaApp() {
     setNome(vistoria.nome || "");
     setWhatsapp(vistoria.whatsapp || "");
     setApelido(vistoria.apelido || "");
-    setEndereco(vistoria.endereco || "");
     setCidade(vistoria.cidade || "");
+    setRua(vistoria.rua || "");
+    setNumero(vistoria.numero || "");
+    setBairro(vistoria.bairro || "");
+    setCep(vistoria.cep || "");
+    setUf(vistoria.uf || "");
+    setAreaM2(vistoria.area_m2 || "");
+    setTotalComodos(vistoria.total_comodos || "");
+    setNomeLocador(vistoria.nome_locador || "");
+    setNomeResponsavelEntrega(vistoria.nome_responsavel_entrega || "");
     setTipoImovel(vistoria.tipo_imovel || "apartamento");
     setMobiliado(vistoria.mobiliado || "nao");
     setQuartos(vistoria.quartos || 2);
@@ -464,7 +480,8 @@ export default function VistoriaApp() {
     const agora = new Date();
     try {
       const row = await salvarVistoria(vistoriaId, userId, {
-        nome, whatsapp, apelido, endereco, cidade, tipoImovel, mobiliado, quartos, banheiros, finalidade, concluidaEm: agora.toISOString(),
+        nome, whatsapp, apelido, cidade, rua, numero, bairro, cep, uf, areaM2, totalComodos, nomeLocador, nomeResponsavelEntrega,
+        tipoImovel, mobiliado, quartos, banheiros, finalidade, concluidaEm: agora.toISOString(),
       });
       setVistoriaId(row.id);
       setConcluidoEm(agora.toLocaleDateString("pt-BR"));
@@ -476,24 +493,34 @@ export default function VistoriaApp() {
     setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
     setTipoImovel("apartamento"); setMobiliado("nao");
     setQuartos(2); setBanheiros(1); setConcluidoEm(""); setPerfilPronto(false); setPdfGerado(false);
-    setVistoriaId(null); setParecerIA(""); setApelido(""); setEndereco(""); setCidade(""); setApelidoErro("");
+    setVistoriaId(null); setParecerIA(""); setApelido(""); setCidade(""); setApelidoErro("");
+    setRua(""); setNumero(""); setBairro(""); setCep(""); setUf(""); setAreaM2(""); setTotalComodos("");
+    setNomeLocador(""); setNomeResponsavelEntrega("");
     setVistoriaOrigemId(null); setVistoriaSaidaId(null);
     setStep("perguntas");
   };
 
   const iniciarVistoriaSaida = async (origemVistoria) => {
     const origem = origemVistoria || {
-      id: vistoriaId, nome, whatsapp, apelido, endereco, cidade,
+      id: vistoriaId, nome, whatsapp, apelido, cidade, rua, numero, bairro, cep, uf,
+      area_m2: areaM2, total_comodos: totalComodos, nome_locador: nomeLocador, nome_responsavel_entrega: nomeResponsavelEntrega,
       tipo_imovel: tipoImovel, mobiliado, quartos, banheiros, finalidade,
     };
     try {
       const row = await salvarVistoria(null, userId, {
-        nome: origem.nome, whatsapp: origem.whatsapp, apelido: origem.apelido, endereco: origem.endereco, cidade: origem.cidade,
+        nome: origem.nome, whatsapp: origem.whatsapp, apelido: origem.apelido, cidade: origem.cidade,
+        rua: origem.rua, numero: origem.numero, bairro: origem.bairro, cep: origem.cep, uf: origem.uf,
+        areaM2: origem.area_m2, totalComodos: origem.total_comodos,
+        nomeLocador: origem.nome_locador, nomeResponsavelEntrega: origem.nome_responsavel_entrega,
         tipoImovel: origem.tipo_imovel, mobiliado: origem.mobiliado, quartos: origem.quartos, banheiros: origem.banheiros,
         finalidade: origem.finalidade, vistoriaOrigemId: origem.id,
       });
       setNome(origem.nome || ""); setWhatsapp(origem.whatsapp || "");
-      setApelido(origem.apelido || ""); setEndereco(origem.endereco || ""); setCidade(origem.cidade || "");
+      setApelido(origem.apelido || ""); setCidade(origem.cidade || "");
+      setRua(origem.rua || ""); setNumero(origem.numero || ""); setBairro(origem.bairro || "");
+      setCep(origem.cep || ""); setUf(origem.uf || "");
+      setAreaM2(origem.area_m2 || ""); setTotalComodos(origem.total_comodos || "");
+      setNomeLocador(origem.nome_locador || ""); setNomeResponsavelEntrega(origem.nome_responsavel_entrega || "");
       setTipoImovel(origem.tipo_imovel || "apartamento"); setMobiliado(origem.mobiliado || "nao");
       setQuartos(origem.quartos || 2); setBanheiros(origem.banheiros || 1); setFinalidade(origem.finalidade || "aluguel");
       setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
@@ -855,16 +882,42 @@ export default function VistoriaApp() {
             <p style={{ fontSize: 11.5, opacity: 0.55, margin: "0 0 14px" }}>Ajuda a identificar essa vistoria depois, se você tiver mais de uma.</p>
             {apelidoErro && <p style={{ color: RED, fontSize: 12.5, margin: "-10px 0 14px" }}>{apelidoErro}</p>}
 
-            <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Endereço <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
-                <input className="field" value={endereco} onChange={(e) => setEndereco(e.target.value)} placeholder="Rua, número"
+            <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+              <div style={{ flex: 3 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Rua <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                <input className="field" value={rua} onChange={(e) => setRua(e.target.value)} placeholder="Rua Augusta"
                   style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
               </div>
               <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Número</label>
+                <input className="field" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="302"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+              <div style={{ flex: 2 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Bairro <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                <input className="field" value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Centro"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>CEP</label>
+                <input className="field" value={cep} onChange={(e) => setCep(e.target.value)} placeholder="00000-000"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+              <div style={{ flex: 3 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Cidade <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
                 <input className="field" value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Sua cidade"
                   style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>UF</label>
+                <input className="field" value={uf} onChange={(e) => setUf(e.target.value.toUpperCase().slice(0, 2))} placeholder="SP"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5, textTransform: "uppercase" }} />
               </div>
             </div>
 
@@ -903,7 +956,23 @@ export default function VistoriaApp() {
               </p>
             )}
 
-            <div style={{ display: "flex", gap: 16, marginBottom: 26 }}>
+            <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+              {finalidade === "aluguel" ? (
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Nome do(a) locador(a) <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                  <input className="field" value={nomeLocador} onChange={(e) => setNomeLocador(e.target.value)} placeholder="Nome de quem está alugando o imóvel pra você"
+                    style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+                </div>
+              ) : (
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Responsável pela entrega <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                  <input className="field" value={nomeResponsavelEntrega} onChange={(e) => setNomeResponsavelEntrega(e.target.value)} placeholder="Se aplicável: nome da incorporadora/construtora"
+                    style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Quartos</p>
                 <select className="field" value={quartos} onChange={(e) => setQuartos(Number(e.target.value))}
@@ -920,10 +989,26 @@ export default function VistoriaApp() {
               </div>
             </div>
 
+            <div style={{ display: "flex", gap: 16, marginBottom: 26 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Área (m²) <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                <input className="field" type="number" min="0" value={areaM2} onChange={(e) => setAreaM2(e.target.value)} placeholder="ex: 65"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 4 }}>Total de cômodos <span style={{ opacity: 0.5, fontWeight: 400 }}>(opcional)</span></label>
+                <input className="field" type="number" min="0" value={totalComodos} onChange={(e) => setTotalComodos(e.target.value)} placeholder="ex: 5"
+                  style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", border: `1px solid ${LINE}`, borderRadius: 3, fontFamily: "inherit", fontSize: 14.5 }} />
+              </div>
+            </div>
+
             <button onClick={async () => {
               if (!apelido.trim()) { setApelidoErro("Dá um nome pra essa vistoria — ajuda a encontrar ela depois."); return; }
               try {
-                const row = await salvarVistoria(vistoriaId, userId, { nome, whatsapp, apelido, endereco, cidade, tipoImovel, mobiliado, quartos, banheiros, finalidade });
+                const row = await salvarVistoria(vistoriaId, userId, {
+                  nome, whatsapp, apelido, cidade, rua, numero, bairro, cep, uf, areaM2, totalComodos, nomeLocador, nomeResponsavelEntrega,
+                  tipoImovel, mobiliado, quartos, banheiros, finalidade,
+                });
                 setVistoriaId(row.id);
                 setTemVistoriaSalva(true);
               } catch { setSaveError(true); }
@@ -1404,6 +1489,35 @@ export default function VistoriaApp() {
                   <p style={{ fontSize: 12.5, lineHeight: 1.5, margin: 0 }}>{parecerIA}</p>
                 </div>
               )}
+
+              <div style={{ marginBottom: 22, breakInside: "avoid" }}>
+                <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: 14, fontWeight: 700, margin: "0 0 6px", borderBottom: "1px solid #ccc", paddingBottom: 3 }}>Termo de vistoria</h3>
+                <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0, textAlign: "justify" }}>
+                  O objeto do presente termo é a vistoria de um imóvel residencial localizado à {rua || "—"}
+                  {numero ? `, nº ${numero}` : ""}
+                  {bairro ? ` - ${bairro}` : ""}
+                  {cep ? `, CEP ${cep}` : ""}
+                  , na cidade de {cidade || "—"} – {uf || "—"}. O imóvel trata-se de {tipoImovel === "casa" ? "uma casa" : "um apartamento"}
+                  {areaM2 ? `, com ${areaM2} metros quadrados` : ""}
+                  {totalComodos ? `, ${totalComodos} cômodos` : ""}
+                  , {mobiliado === "sim" ? "mobiliado" : "não mobiliado"}.
+                </p>
+
+                <div style={{ display: "flex", gap: 24, marginTop: 34 }}>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ borderTop: "1px solid #1a1a1a", paddingTop: 4 }}>
+                      <p style={{ fontSize: 11.5, margin: 0 }}>{finalidade === "aluguel" ? "Locador(a)" : "Proprietário(a)"}</p>
+                      <p style={{ fontSize: 11, opacity: 0.6, margin: "2px 0 0" }}>{(finalidade === "aluguel" ? nomeLocador : nome) || "—"}</p>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ borderTop: "1px solid #1a1a1a", paddingTop: 4 }}>
+                      <p style={{ fontSize: 11.5, margin: 0 }}>{finalidade === "aluguel" ? "Locatário(a)" : "Responsável pela incorporadora/construtora"}</p>
+                      <p style={{ fontSize: 11, opacity: 0.6, margin: "2px 0 0" }}>{(finalidade === "aluguel" ? nome : nomeResponsavelEntrega) || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {checklist.map((cat, ci) => (
                 <div key={ci} style={{ marginBottom: 16, breakInside: "avoid" }}>
