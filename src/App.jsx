@@ -1377,7 +1377,7 @@ export default function VistoriaApp() {
                 <ArrowLeft size={15} /> Voltar
               </button>
               <button onClick={baixarPdf} disabled={gerandoPdf} style={{ flex: 1, padding: "11px", background: INK, color: PAPER, border: "none", borderRadius: 3, cursor: gerandoPdf ? "default" : "pointer", opacity: gerandoPdf ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 14, fontWeight: 600 }}>
-                <Printer size={15} /> {gerandoPdf ? "Gerando PDF…" : "Baixar PDF"}
+                <Printer size={15} /> {gerandoPdf ? "Gerando PDF…" : "Baixar / compartilhar PDF"}
               </button>
             </div>
 

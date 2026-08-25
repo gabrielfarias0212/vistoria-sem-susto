@@ -28,5 +28,18 @@ export async function gerarPdfDeElemento(el, filename) {
     heightLeft -= pageHeight;
   }
 
+  const blob = pdf.output("blob");
+  const file = new File([blob], filename, { type: "application/pdf" });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (err) {
+      if (err?.name === "AbortError") return; // usuário fechou o menu de compartilhar, não tenta de novo
+      // qualquer outro erro: cai no download tradicional abaixo
+    }
+  }
+
   pdf.save(filename);
 }
