@@ -116,6 +116,28 @@ export async function fetchVistoriaAtual(userId) {
   return data;
 }
 
+export async function fetchVistoriaPorId(vistoriaId) {
+  const { data, error } = await supabase
+    .from("vistorias")
+    .select("*")
+    .eq("id", vistoriaId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchVistoriaSaida(origemId) {
+  const { data, error } = await supabase
+    .from("vistorias")
+    .select("*")
+    .eq("vistoria_origem_id", origemId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function salvarVistoria(vistoriaId, userId, patch) {
   const payload = {
     user_id: userId,
@@ -128,6 +150,7 @@ export async function salvarVistoria(vistoriaId, userId, patch) {
     finalidade: patch.finalidade,
   };
   if (patch.concluidaEm !== undefined) payload.concluida_em = patch.concluidaEm;
+  if (!vistoriaId && patch.vistoriaOrigemId !== undefined) payload.vistoria_origem_id = patch.vistoriaOrigemId;
 
   if (vistoriaId) {
     const { data, error } = await supabase

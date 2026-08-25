@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import {
   signUp, signIn, signOut, getSession, getConta, fetchPlanos, fetchVistoriaAtual,
+  fetchVistoriaPorId, fetchVistoriaSaida,
   salvarVistoria, fetchChecklistState, ensureItemRow, adicionarFotoItem, removerFotoItem,
   consumirCreditoPdf, authErrorMessage, criarCheckout, cancelarAssinatura, gerarParecerIA,
   enviarResetSenha, atualizarSenha, onPasswordRecovery,
@@ -155,6 +156,8 @@ export default function VistoriaApp() {
   const [cancelando, setCancelando] = useState(false);
   const [parecerIA, setParecerIA] = useState("");
   const [gerandoParecer, setGerandoParecer] = useState(false);
+  const [vistoriaOrigemId, setVistoriaOrigemId] = useState(null);
+  const [vistoriaSaidaId, setVistoriaSaidaId] = useState(null);
   const [resetEmail, setResetEmail] = useState("");
   const [resetEnviado, setResetEnviado] = useState(false);
   const [resetErro, setResetErro] = useState("");
@@ -191,6 +194,44 @@ export default function VistoriaApp() {
 
   const printableRef = useRef(null);
 
+  const aplicarVistoria = useCallback(async (vistoria) => {
+    setVistoriaId(vistoria.id);
+    setNome(vistoria.nome || "");
+    setWhatsapp(vistoria.whatsapp || "");
+    setTipoImovel(vistoria.tipo_imovel || "apartamento");
+    setMobiliado(vistoria.mobiliado || "nao");
+    setQuartos(vistoria.quartos || 2);
+    setBanheiros(vistoria.banheiros || 1);
+    setFinalidade(vistoria.finalidade || "aluguel");
+    setConcluidoEm(vistoria.concluida_em ? new Date(vistoria.concluida_em).toLocaleDateString("pt-BR") : "");
+    setPdfGerado(!!vistoria.pdf_gerado);
+    setParecerIA(vistoria.parecer_ia || "");
+    setVistoriaOrigemId(vistoria.vistoria_origem_id || null);
+
+    if (vistoria.vistoria_origem_id) {
+      setVistoriaSaidaId(null);
+    } else {
+      try {
+        const saida = await fetchVistoriaSaida(vistoria.id);
+        setVistoriaSaidaId(saida?.id || null);
+      } catch { setVistoriaSaidaId(null); }
+    }
+
+    const def = buildChecklist({
+      tipoImovel: vistoria.tipo_imovel, mobiliado: vistoria.mobiliado,
+      quartos: vistoria.quartos, banheiros: vistoria.banheiros,
+    });
+    try {
+      const st = await fetchChecklistState(vistoria.id, def);
+      setChecked(st.checked);
+      setProblemas(st.problemas);
+      setFotos(st.fotos);
+      setItemRows(st.rowByKey);
+    } catch { setSaveError(true); }
+
+    setPerfilPronto(true);
+  }, []);
+
   const afterAuth = useCallback(async (user) => {
     setUserId(user.id);
     try {
@@ -204,37 +245,21 @@ export default function VistoriaApp() {
     } catch { setSaveError(true); }
 
     if (vistoria) {
-      setVistoriaId(vistoria.id);
-      setNome(vistoria.nome || "");
-      setWhatsapp(vistoria.whatsapp || "");
-      setTipoImovel(vistoria.tipo_imovel || "apartamento");
-      setMobiliado(vistoria.mobiliado || "nao");
-      setQuartos(vistoria.quartos || 2);
-      setBanheiros(vistoria.banheiros || 1);
-      setFinalidade(vistoria.finalidade || "aluguel");
-      setConcluidoEm(vistoria.concluida_em ? new Date(vistoria.concluida_em).toLocaleDateString("pt-BR") : "");
-      setPdfGerado(!!vistoria.pdf_gerado);
-      setParecerIA(vistoria.parecer_ia || "");
-
-      const def = buildChecklist({
-        tipoImovel: vistoria.tipo_imovel, mobiliado: vistoria.mobiliado,
-        quartos: vistoria.quartos, banheiros: vistoria.banheiros,
-      });
-      try {
-        const st = await fetchChecklistState(vistoria.id, def);
-        setChecked(st.checked);
-        setProblemas(st.problemas);
-        setFotos(st.fotos);
-        setItemRows(st.rowByKey);
-      } catch { setSaveError(true); }
-
-      setPerfilPronto(true);
+      await aplicarVistoria(vistoria);
       setStep("checklist");
     } else {
       setPerfilPronto(false);
       setStep("perguntas");
     }
-  }, []);
+  }, [aplicarVistoria]);
+
+  const abrirVistoriaLigada = async (id) => {
+    try {
+      const vistoria = await fetchVistoriaPorId(id);
+      await aplicarVistoria(vistoria);
+      setStep("painel");
+    } catch { setSaveError(true); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -294,6 +319,7 @@ export default function VistoriaApp() {
     setOpenProblema({}); setNovoProblema({});
     setSenha(""); setConfirmSenha(""); setAuthErro(""); setConfirmacaoEmail(false);
     setModo("entrar"); setPerfilPronto(false); setConcluidoEm("");
+    setVistoriaOrigemId(null); setVistoriaSaidaId(null);
     setStep("login");
   };
 
@@ -405,7 +431,22 @@ export default function VistoriaApp() {
     setTipoImovel("apartamento"); setMobiliado("nao");
     setQuartos(2); setBanheiros(1); setConcluidoEm(""); setPerfilPronto(false); setPdfGerado(false);
     setVistoriaId(null); setParecerIA("");
+    setVistoriaOrigemId(null); setVistoriaSaidaId(null);
     setStep("perguntas");
+  };
+
+  const iniciarVistoriaSaida = async () => {
+    try {
+      const row = await salvarVistoria(null, userId, {
+        nome, whatsapp, tipoImovel, mobiliado, quartos, banheiros, finalidade, vistoriaOrigemId: vistoriaId,
+      });
+      setChecked({}); setProblemas({}); setOpenProblema({}); setNovoProblema({}); setFotos({}); setItemRows({});
+      setConcluidoEm(""); setPdfGerado(false); setParecerIA("");
+      setVistoriaOrigemId(vistoriaId);
+      setVistoriaSaidaId(null);
+      setVistoriaId(row.id);
+      setStep("checklist");
+    } catch { setSaveError(true); }
   };
 
   const abrirRelatorio = async () => {
@@ -848,7 +889,12 @@ export default function VistoriaApp() {
         {step === "painel" && (
           <div>
             <div style={{ position: "relative", background: INK, color: PAPER, borderRadius: 4, padding: "22px 22px 18px", marginBottom: 20 }}>
-              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1 }}>ÁREA DA VISTORIA</p>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 1, display: "flex", alignItems: "center", gap: 8 }}>
+                ÁREA DA VISTORIA
+                {vistoriaOrigemId && (
+                  <span style={{ background: AMBER, color: INK, padding: "2px 7px", borderRadius: 3, fontSize: 10.5, letterSpacing: 0.5 }}>VISTORIA DE SAÍDA</span>
+                )}
+              </p>
               <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 23, margin: "4px 0 10px" }}>{nome.split(" ")[0]}, aqui está o resumo</h1>
               <p style={{ margin: 0, fontSize: 13, opacity: 0.8 }}>
                 {tipoImovel === "casa" ? "Casa" : "Apartamento"} · {quartos} quarto{quartos > 1 ? "s" : ""} · {banheiros} banheiro{banheiros > 1 ? "s" : ""} · {mobiliado === "sim" ? "mobiliado" : "sem mobília"}
@@ -938,10 +984,31 @@ export default function VistoriaApp() {
               style={{ width: "100%", padding: "13px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: gerandoParecer ? "default" : "pointer", opacity: gerandoParecer ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
               <FileText size={17} /> {gerandoParecer ? "Preparando parecer da IA…" : "Ver relatório completo (PDF)"}
             </button>
-            <button onClick={() => setStep("checklist")}
-              style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
-              <ArrowLeft size={16} /> Voltar ao checklist
-            </button>
+            {!concluidoEm && (
+              <button onClick={() => setStep("checklist")}
+                style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                <ArrowLeft size={16} /> Voltar ao checklist
+              </button>
+            )}
+            {concluidoEm && vistoriaOrigemId && (
+              <button onClick={() => abrirVistoriaLigada(vistoriaOrigemId)}
+                style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                <ArrowLeft size={16} /> Ver vistoria de entrada
+              </button>
+            )}
+            {concluidoEm && !vistoriaOrigemId && finalidade === "aluguel" && (
+              vistoriaSaidaId ? (
+                <button onClick={() => abrirVistoriaLigada(vistoriaSaidaId)}
+                  style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                  <ArrowLeft size={16} /> Ver vistoria de saída
+                </button>
+              ) : (
+                <button onClick={iniciarVistoriaSaida}
+                  style={{ width: "100%", padding: "12px 16px", background: "transparent", color: INK, border: `1.5px solid ${LINE}`, borderRadius: 3, fontWeight: 500, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
+                  <PlusCircle size={16} /> Fazer vistoria de saída
+                </button>
+              )
+            )}
             <button onClick={reiniciar}
               style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <PlusCircle size={15} /> Iniciar uma nova vistoria
