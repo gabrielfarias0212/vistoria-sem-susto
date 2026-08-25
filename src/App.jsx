@@ -158,6 +158,7 @@ export default function VistoriaApp() {
   const [gerandoParecer, setGerandoParecer] = useState(false);
   const [vistoriaOrigemId, setVistoriaOrigemId] = useState(null);
   const [vistoriaSaidaId, setVistoriaSaidaId] = useState(null);
+  const [temVistoriaSalva, setTemVistoriaSalva] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetEnviado, setResetEnviado] = useState(false);
   const [resetErro, setResetErro] = useState("");
@@ -230,6 +231,7 @@ export default function VistoriaApp() {
     } catch { setSaveError(true); }
 
     setPerfilPronto(true);
+    setTemVistoriaSalva(true);
   }, []);
 
   const afterAuth = useCallback(async (user) => {
@@ -258,6 +260,20 @@ export default function VistoriaApp() {
       const vistoria = await fetchVistoriaPorId(id);
       await aplicarVistoria(vistoria);
       setStep("painel");
+    } catch { setSaveError(true); }
+  };
+
+  const voltarAoDashboard = async () => {
+    if (vistoriaOrigemId) {
+      await abrirVistoriaLigada(vistoriaOrigemId);
+      return;
+    }
+    try {
+      const vistoria = await fetchVistoriaAtual(userId);
+      if (vistoria) {
+        await aplicarVistoria(vistoria);
+        setStep(vistoria.concluida_em ? "dashboard" : "checklist");
+      }
     } catch { setSaveError(true); }
   };
 
@@ -319,7 +335,7 @@ export default function VistoriaApp() {
     setOpenProblema({}); setNovoProblema({});
     setSenha(""); setConfirmSenha(""); setAuthErro(""); setConfirmacaoEmail(false);
     setModo("entrar"); setPerfilPronto(false); setConcluidoEm("");
-    setVistoriaOrigemId(null); setVistoriaSaidaId(null);
+    setVistoriaOrigemId(null); setVistoriaSaidaId(null); setTemVistoriaSalva(false);
     setStep("login");
   };
 
@@ -784,6 +800,11 @@ export default function VistoriaApp() {
               style={{ width: "100%", padding: "12px 16px", background: AMBER, color: INK, border: "none", borderRadius: 3, fontWeight: 600, fontSize: 15, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <Sparkles size={16} /> Gerar meu checklist
             </button>
+            {temVistoriaSalva && (
+              <button onClick={voltarAoDashboard} style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
+                <ArrowLeft size={14} /> voltar
+              </button>
+            )}
           </div>
         )}
 
@@ -883,6 +904,11 @@ export default function VistoriaApp() {
             <button onClick={reiniciar} style={{ display: "flex", alignItems: "center", gap: 6, margin: "14px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
               <RotateCcw size={14} /> refazer perguntas do imóvel
             </button>
+            {temVistoriaSalva && (
+              <button onClick={voltarAoDashboard} style={{ display: "flex", alignItems: "center", gap: 6, margin: "10px auto 0", background: "none", border: "none", color: INK, opacity: 0.5, fontSize: 13, cursor: "pointer" }}>
+                <ArrowLeft size={14} /> voltar ao dashboard
+              </button>
+            )}
           </div>
         )}
 
@@ -1058,6 +1084,12 @@ export default function VistoriaApp() {
               style={{ width: "100%", padding: "11px 16px", background: "transparent", color: INK, opacity: 0.6, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <PlusCircle size={15} /> Iniciar uma nova vistoria
             </button>
+            {temVistoriaSalva && (
+              <button onClick={voltarAoDashboard}
+                style={{ width: "100%", padding: "10px 16px", background: "transparent", color: INK, opacity: 0.5, border: "none", borderRadius: 3, fontWeight: 500, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 4 }}>
+                <ArrowLeft size={14} /> voltar ao dashboard
+              </button>
+            )}
           </div>
         )}
 
